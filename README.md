@@ -6,8 +6,7 @@ EpiTrello vous aide à **visualiser le travail**, **suivre l’avancement** et *
 
 ---
 
-## ✨ Aperçu du projet (non technique)
-
+## ✨ Aperçu du projet 
 - **Tableaux** pour vos projets
 - **Listes** (ex. À faire → En cours → Fait)
 - **Cartes** avec titre, description, étiquettes, échéances et membres
@@ -20,7 +19,7 @@ EpiTrello vous aide à **visualiser le travail**, **suivre l’avancement** et *
 
 ---
 
-## 🖼️ Captures d’écran (à insérer plus tard)
+## 🖼️ Captures d’écran
 
 > Ajoutez vos visuels dans `docs/images` puis remplacez les chemins ci‑dessous.
 
@@ -81,7 +80,7 @@ Puis ouvrez votre navigateur sur **http://localhost:3000**.
 
 ---
 
-## 🧭 Structure (simplifiée)
+## 🧭 Structure 
 ```
 epitrello/
 ├─ app/                # Pages et routes Next.js (App Router)
