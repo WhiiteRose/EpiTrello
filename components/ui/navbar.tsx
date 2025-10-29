@@ -1,10 +1,12 @@
 "use client";
 
-import { SignInButton, SignUpButton } from "@clerk/nextjs";
-import { Trello } from "lucide-react";
+import { SignInButton, SignUpButton, useUser } from "@clerk/nextjs";
+import { ArrowRight, Trello } from "lucide-react";
 import { Button } from "./button";
+import Link from "next/link";
 
 export default function NavBar() {
+  const { isSignedIn, user } = useUser();
   return (
     <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 py-3 sm:py-4 flex items-center justify-between">
@@ -15,18 +17,35 @@ export default function NavBar() {
           </span>
         </div>
         <div className="flex items-center spaxe-x-2 sm:space-x-4">
-          <div>
-            <SignInButton>
-              <Button variant="ghost" size="sm" className="text-xs sm:text-sm">
-                Sign In
-              </Button>
-            </SignInButton>
-            <SignUpButton>
-              <Button size="sm" className="text-xs sm:text-sm">
-                Sign Up
-              </Button>
-            </SignUpButton>
-          </div>
+          {isSignedIn ? (
+            <div className="flex flex-col sm:flex-row items-end sm:items-denter space-y-1 sm:space-y-0 sm:space-x-4">
+              <span className="text-xs sm:text-sm text-gray-600 hidden sm:block">
+                Welcome, {user.firstName ?? user.emailAddresses[0].emailAddress}
+              </span>
+              <Link href={"/dashboard"}>
+                <Button size="sm" className="text-xs sm:text-sm">
+                  Go to Dashboard <ArrowRight />
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div>
+              <SignInButton>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs sm:text-sm"
+                >
+                  Sign In
+                </Button>
+              </SignInButton>
+              <SignUpButton>
+                <Button size="sm" className="text-xs sm:text-sm">
+                  Sign Up
+                </Button>
+              </SignUpButton>
+            </div>
+          )}
         </div>
       </div>
     </header>
