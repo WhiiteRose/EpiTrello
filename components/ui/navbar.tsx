@@ -1,6 +1,8 @@
 "use client";
 
+import { SignInButton, SignUpButton } from "@clerk/nextjs";
 import { Trello } from "lucide-react";
+import { Button } from "./button";
 
 export default function NavBar() {
   return (
@@ -11,6 +13,20 @@ export default function NavBar() {
           <span className="text-xl sm:text-2xl font-bold text-gray-900">
             EpiTrello
           </span>
+        </div>
+        <div className="flex items-center spaxe-x-2 sm:space-x-4">
+          <div>
+            <SignInButton>
+              <Button variant="ghost" size="sm" className="text-xs sm:text-sm">
+                Sign In
+              </Button>
+            </SignInButton>
+            <SignUpButton>
+              <Button size="sm" className="text-xs sm:text-sm">
+                Sign Up
+              </Button>
+            </SignUpButton>
+          </div>
         </div>
       </div>
     </header>
