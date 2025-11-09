@@ -3,7 +3,15 @@ import NavBar from "@/components/ui/navbar";
 import { Button } from "@/components/ui/button";
 import { useBoards } from "@/lib/hooks/useBoards";
 import { useUser } from "@clerk/nextjs";
-import { Grid3x3, List, Loader2, Plus, Rocket, Trello } from "lucide-react";
+import {
+  Filter,
+  Grid3x3,
+  List,
+  Loader2,
+  Plus,
+  Rocket,
+  Trello,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useState } from "react";
 
@@ -152,6 +160,14 @@ export default function DashboardPage() {
                   <List />
                 </Button>
               </div>
+              <Button variant="outline" size="sm">
+                <Filter />
+                Filter
+              </Button>
+              <Button onClick={handleCreateBoard}>
+                <Plus />
+                Create Board
+              </Button>
             </div>
           </div>
         </div>
