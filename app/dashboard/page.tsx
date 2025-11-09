@@ -3,13 +3,14 @@ import NavBar from "@/components/ui/navbar";
 import { Button } from "@/components/ui/button";
 import { useBoards } from "@/lib/hooks/useBoards";
 import { useUser } from "@clerk/nextjs";
-import { Loader2, Plus, Rocket, Trello } from "lucide-react";
+import { Grid3x3, List, Loader2, Plus, Rocket, Trello } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { useState } from "react";
 
 export default function DashboardPage() {
   const { user } = useUser();
-
   const { createBoard, boards, loading, error } = useBoards();
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   const handleCreateBoard = async () => {
     await createBoard({ title: "New Board" });
@@ -125,6 +126,34 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+        </div>
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 space-y-4 sm:space-y-0">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                Your boards
+              </h2>
+              <p className="text-gray-600">Manage your projects and tasks</p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0">
+              <div className="flex items-center space-x-2 bg-white border p-1">
+                <Button
+                  variant={viewMode === "grid" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("grid")}
+                >
+                  <Grid3x3 />
+                </Button>
+                <Button
+                  variant={viewMode === "list" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                >
+                  <List />
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>
