@@ -11,14 +11,29 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export default function BoardPage() {
   const { id } = useParams<{ id: string }>();
-  const { board } = useBoard(id);
+  const { board, updateBoard } = useBoard(id);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newColor, setNewColor] = useState("");
+
+  async function handleUpdateBoard(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!newTitle.trim() || !board) return;
+
+    try {
+      await updateBoard(board.id, {
+        title: newTitle.trim(),
+        color: newColor || board.color,
+      });
+      setIsEditingTitle(false);
+    } catch {}
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -35,8 +50,8 @@ export default function BoardPage() {
           <DialogHeader>
             <DialogTitle>Edit Board</DialogTitle>
           </DialogHeader>
-          <form action="">
-            <div>
+          <form className="space-y-4" onSubmit={handleUpdateBoard}>
+            <div className="space-y-2">
               <Label htmlFor="boardTitle">Board Title</Label>
               <Input
                 id="boardTitle"
@@ -47,9 +62,9 @@ export default function BoardPage() {
               />
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label>Board Color</Label>
-              <div>
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                 {[
                   "bg-blue-500",
                   "bg-green-500",
@@ -63,8 +78,9 @@ export default function BoardPage() {
                   "bg-teal-500",
                   "bg-cyan-500",
                   "bg-emerald-500",
-                ].map((color) => (
+                ].map((color, key) => (
                   <button
+                    key={key}
                     type="button"
                     className={`w-8 h-8 rounded-full ${color} ${
                       color === newColor
@@ -75,6 +91,16 @@ export default function BoardPage() {
                   />
                 ))}
               </div>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditingTitle(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
             </div>
           </form>
         </DialogContent>
