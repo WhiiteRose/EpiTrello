@@ -10,10 +10,12 @@ import {
   Loader2,
   Plus,
   Rocket,
+  Search,
   Trello,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useState } from "react";
+import { Input } from "@/components/ui/input";
 
 export default function DashboardPage() {
   const { user } = useUser();
@@ -169,6 +171,15 @@ export default function DashboardPage() {
                 Create Board
               </Button>
             </div>
+          </div>
+          {/* Search Bar */}
+          <div className="relative mb-4 sm:mb-6">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              id="search"
+              placeholder="Search boards..."
+              className="pl-10"
+            />
           </div>
         </div>
       </main>
