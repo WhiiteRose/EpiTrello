@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useBoards } from "@/lib/hooks/useBoards";
 import { useUser } from "@clerk/nextjs";
 import {
+  Car,
   Filter,
   Grid3x3,
   List,
@@ -227,6 +228,14 @@ export default function DashboardPage() {
                   </Card>
                 </Link>
               ))}
+              <Card className="border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer group">
+                <CardContent className="p-4 sm:p-6 flex flex-col items-center justify-center h-full min-h-[200px]">
+                  <Plus className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 group-hover:text-blue-600 mb-2" />
+                  <p className="text-sm sm:text-base text-gray-600 group-hover:text-blue-600 font-medium">
+                    Create new board
+                  </p>
+                </CardContent>
+              </Card>
             </div>
           ) : (
             <div></div>
