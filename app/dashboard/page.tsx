@@ -1,5 +1,5 @@
 "use client";
-import NavBar from "@/components/ui/navbar";
+import NavBar from "@/components/navbar";
 import { Button } from "@/components/ui/button";
 import { useBoards } from "@/lib/hooks/useBoards";
 import { useUser } from "@clerk/nextjs";
