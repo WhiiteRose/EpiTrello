@@ -20,22 +20,41 @@ export default function SupabaseProvider({
   const { session } = useSession();
   const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
+  const [configError, setConfigError] = useState<string | null>(null);
   useEffect(() => {
-    if (!session) return;
-    const client = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        accessToken: async () => session?.getToken() ?? null,
-      }
-    );
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      const message =
+        "Missing Supabase configuration. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.";
+      console.error(message);
+      setConfigError(message);
+      setSupabase(null);
+      setIsLoaded(true);
+      return;
+    }
+
+    setConfigError(null);
+
+    const client = createClient(supabaseUrl, supabaseAnonKey, {
+      accessToken: async () =>
+        session ? await session.getToken().catch(() => null) : null,
+    });
+
     setSupabase(client);
     setIsLoaded(true);
-  }, [session]);
+  }, [session?.id]);
 
   return (
     <Context.Provider value={{ supabase, isLoaded }}>
-      {!isLoaded ? <div>Loading...</div> : children}
+      {configError ? (
+        <div>{configError}</div>
+      ) : !isLoaded ? (
+        <div>Loading...</div>
+      ) : (
+        children
+      )}
     </Context.Provider>
   );
 }
