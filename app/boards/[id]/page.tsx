@@ -55,7 +55,8 @@ function Column({
             </Button>
           </div>
         </div>
-        {/* */}
+        {/* column content */}
+        <div className="p-2">{children}</div>
       </div>
     </div>
   );
@@ -63,7 +64,7 @@ function Column({
 
 export default function BoardPage() {
   const { id } = useParams<{ id: string }>();
-  const { board, updateBoard, columns } = useBoard(id);
+  const { board, updateBoard, columns, createRealTask } = useBoard(id);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -82,6 +83,38 @@ export default function BoardPage() {
       });
       setIsEditingTitle(false);
     } catch {}
+  }
+
+  async function createTask(taskData: {
+    title: string;
+    description?: string;
+    assignee?: string;
+    dueDate?: string;
+    priority: 'low' | 'medium' | 'high';
+  }) {
+    const targetColumn = columns[0];
+    if (!targetColumn) {
+      throw new Error('No column available to add task');
+    }
+
+    await createRealTask(targetColumn.id, taskData);
+  }
+
+  async function handleCreateTask(e: any) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    const taskData = {
+      title: formData.get('title') as string,
+      description: (formData.get('description') as string) || undefined,
+      assignee: (formData.get('assignee') as string) || undefined,
+      dueDate: (formData.get('dueDate') as string) || undefined,
+      priority: (formData.get('priority') as 'low' | 'medium' | 'high') || 'medium',
+    };
+
+    if (taskData.title.trim()) {
+      await createTask(taskData);
+    }
   }
 
   return (
@@ -221,7 +254,7 @@ export default function BoardPage() {
                 <DialogTitle>Create New Task</DialogTitle>
                 <p className="text-sm text-gray-600">Add a task to the board </p>
               </DialogHeader>
-              <form className="space-y-4">
+              <form className="space-y-4" onSubmit={handleCreateTask}>
                 <div className="space-y-2">
                   <Label>Title *</Label>
                   <Input id="title" name="title" placeholder="Enter task title" />
@@ -270,7 +303,13 @@ export default function BoardPage() {
 
         <div>
           {columns.map((column, key) => (
-            <Column key={key} column={column}></Column>
+            <Column key={key} column={column} onCreateTask={() => {}} onEditColumn={() => {}}>
+              <div>
+                {column.tasks.map((task, key) => (
+                  <div>{task.title}</div>
+                ))}
+              </div>
+            </Column>
           ))}
         </div>
       </main>
