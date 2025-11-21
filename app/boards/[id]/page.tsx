@@ -108,10 +108,8 @@ function Task({ task }: { task: Task }) {
                     <span className="truncate">{task.due_date}</span>
                   </div>
                 )}
-                <div
-                  className={`w-2 h-2 rounded-full shrink-0 ${getPriorityColor(task.priority)}`}
-                />
               </div>
+              <div className={`w-2 h-2 rounded-full shrink-0 ${getPriorityColor(task.priority)}`} />
             </div>
           </div>
         </CardContent>
