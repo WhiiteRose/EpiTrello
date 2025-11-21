@@ -21,12 +21,14 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useBoard } from '@/lib/hooks/useBoards';
-import { ColumnWithTasks, Task as TaskType } from '@/lib/supabase/models';
+import { ColumnWithTasks, Task } from '@/lib/supabase/models';
+import { DndContext, useDroppable } from '@dnd-kit/core';
+import { SortableContext, useSortable } from '@dnd-kit/sortable';
 import { Calendar, MoreHorizontal, Plus, User } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 
-function Column({
+function DroppableColumn({
   column,
   children,
   onCreateTask,
@@ -37,8 +39,12 @@ function Column({
   onCreateTask: (taskData: any) => Promise<void>;
   onEditColumn: (column: ColumnWithTasks) => void;
 }) {
+  const { setNodeRef, isOver } = useDroppable({ id: column.id });
   return (
-    <div className="w-full lg:shrink-0 lg:w-80">
+    <div
+      ref={setNodeRef}
+      className={`w-full lg:shrink-0 lg:w-80 ${isOver ? 'bg-blue-50 rounded-lg' : ''}`}
+    >
       <div className="bf-white rounded-lg shadow-sm border">
         {/* Column Header */}
         <div className="p-3 sm:p-4 border-b">
@@ -121,11 +127,15 @@ function Column({
   );
 }
 
-function Task({ task }: { task: TaskType }) {
+function SortableTask({ task }: { task: Task }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+  });
   function getPriorityColor(priority: 'low' | 'medium' | 'high'): string {
     switch (priority) {
       case 'high':
         return 'bg-red-500';
+
       case 'medium':
         return 'bg-yellow-500';
       case 'low':
@@ -136,7 +146,7 @@ function Task({ task }: { task: TaskType }) {
   }
 
   return (
-    <div>
+    <div ref={setNodeRef} {...listeners} {...attributes}>
       <Card className="cursor-pointer hover:shadow-md transition-shadow">
         <CardContent className="p-3 sm:p-4">
           <div className="space-y-2 sm:space-y-3">
@@ -418,22 +428,31 @@ export default function BoardPage() {
 
         {/* Board Columns */}
 
-        <div className="flex flex-col lg:flex-row lg:space-x-6 lg:overflow-x-auto lg:pb-6 lg:px-2 lg:-mx-2 lg:[&::-webkit-scrollbar]:h-2 lg:[&::-webkit-scrollbar-track]:bg-gray-100 lg:[&::-webkit-scrollbar-thumb]:bg-gray-300 lg:[&::-webkit-scrollbar-thumb]:rounded-full space-y-4 lg:space-y-0">
-          {columns.map((column, key) => (
-            <Column
-              key={key}
-              column={column}
-              onCreateTask={handleCreateTask}
-              onEditColumn={() => {}}
-            >
-              <div className="space-y-3 ">
-                {column.tasks.map((task, key) => (
-                  <Task task={task} key={key} />
-                ))}
-              </div>
-            </Column>
-          ))}
-        </div>
+        <DndContext
+        // sensors={} collisionDetection={} onDragStart={} onDragOver={} onDragEnd={}
+        >
+          <div className="flex flex-col lg:flex-row lg:space-x-6 lg:overflow-x-auto lg:pb-6 lg:px-2 lg:-mx-2 lg:[&::-webkit-scrollbar]:h-2 lg:[&::-webkit-scrollbar-track]:bg-gray-100 lg:[&::-webkit-scrollbar-thumb]:bg-gray-300 lg:[&::-webkit-scrollbar-thumb]:rounded-full space-y-4 lg:space-y-0">
+            {columns.map((column, key) => (
+              <DroppableColumn
+                key={key}
+                column={column}
+                onCreateTask={handleCreateTask}
+                onEditColumn={() => {}}
+              >
+                <SortableContext
+                  items={column.tasks.map((task) => task.id)}
+                  // strategy={}
+                >
+                  <div className="space-y-3 ">
+                    {column.tasks.map((task, key) => (
+                      <SortableTask task={task} key={key} />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DroppableColumn>
+            ))}
+          </div>
+        </DndContext>
       </main>
     </div>
   );
