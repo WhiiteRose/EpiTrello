@@ -1,32 +1,48 @@
-'use client';
-import NavBar from '@/components/navbar';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+"use client";
+import NavBar from "@/components/navbar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { useBoard } from '@/lib/hooks/useBoards';
-import { ColumnWithTasks, Task } from '@/lib/supabase/models';
-import { DndContext, useDroppable } from '@dnd-kit/core';
-import { SortableContext, useSortable } from '@dnd-kit/sortable';
-import { Calendar, MoreHorizontal, Plus, User } from 'lucide-react';
-import { useParams } from 'next/navigation';
-import { useState } from 'react';
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useBoard } from "@/lib/hooks/useBoards";
+import { ColumnWithTasks, Task } from "@/lib/supabase/models";
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  rectIntersection,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { Calendar, MoreHorizontal, Plus, User } from "lucide-react";
+import { useParams } from "next/navigation";
+import { useState } from "react";
+import { CSS } from "@dnd-kit/utilities";
 
 function DroppableColumn({
   column,
@@ -43,7 +59,9 @@ function DroppableColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`w-full lg:shrink-0 lg:w-80 ${isOver ? 'bg-blue-50 rounded-lg' : ''}`}
+      className={`w-full lg:shrink-0 lg:w-80 ${
+        isOver ? "bg-blue-50 rounded-lg" : ""
+      }`}
     >
       <div className="bf-white rounded-lg shadow-sm border">
         {/* Column Header */}
@@ -64,10 +82,13 @@ function DroppableColumn({
         </div>
         {/* column content */}
         <div className="p-2">
-          {children}{' '}
+          {children}{" "}
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="ghost" className="w-full mt-3 text-gray-500 hover:text-gray-700">
+              <Button
+                variant="ghost"
+                className="w-full mt-3 text-gray-500 hover:text-gray-700"
+              >
                 <Plus />
                 Add Task
               </Button>
@@ -76,12 +97,18 @@ function DroppableColumn({
             <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
               <DialogHeader>
                 <DialogTitle>Create New Task</DialogTitle>
-                <p className="text-sm text-gray-600">Add a task to the board </p>
+                <p className="text-sm text-gray-600">
+                  Add a task to the board{" "}
+                </p>
               </DialogHeader>
               <form className="space-y-4" onSubmit={onCreateTask}>
                 <div className="space-y-2">
                   <Label>Title *</Label>
-                  <Input id="title" name="title" placeholder="Enter task title" />
+                  <Input
+                    id="title"
+                    name="title"
+                    placeholder="Enter task title"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Description</Label>
@@ -94,7 +121,11 @@ function DroppableColumn({
                 </div>
                 <div className="space-y-2">
                   <Label>Assignee</Label>
-                  <Input id="assignee" name="assignee" placeholder="Who should do this ?" />
+                  <Input
+                    id="assignee"
+                    name="assignee"
+                    placeholder="Who should do this ?"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Priority</Label>
@@ -103,7 +134,7 @@ function DroppableColumn({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {['low', 'medium', 'high'].map((priority, key) => (
+                      {["low", "medium", "high"].map((priority, key) => (
                         <SelectItem key={key} value={priority}>
                           {priority.charAt(0).toUpperCase() + priority.slice(1)}
                         </SelectItem>
@@ -128,25 +159,38 @@ function DroppableColumn({
 }
 
 function SortableTask({ task }: { task: Task }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: task.id,
   });
-  function getPriorityColor(priority: 'low' | 'medium' | 'high'): string {
-    switch (priority) {
-      case 'high':
-        return 'bg-red-500';
 
-      case 'medium':
-        return 'bg-yellow-500';
-      case 'low':
-        return 'bg-green-500';
+  const styles = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  function getPriorityColor(priority: "low" | "medium" | "high"): string {
+    switch (priority) {
+      case "high":
+        return "bg-red-500";
+
+      case "medium":
+        return "bg-yellow-500";
+      case "low":
+        return "bg-green-500";
       default:
-        return 'bg-yellow-500';
+        return "bg-yellow-500";
     }
   }
 
   return (
-    <div ref={setNodeRef} {...listeners} {...attributes}>
+    <div ref={setNodeRef} style={styles} {...listeners} {...attributes}>
       <Card className="cursor-pointer hover:shadow-md transition-shadow">
         <CardContent className="p-3 sm:p-4">
           <div className="space-y-2 sm:space-y-3">
@@ -158,7 +202,7 @@ function SortableTask({ task }: { task: Task }) {
             </div>
             {/*Task Description */}
             <p className="text-xs text-gray-600 line-clamp-2">
-              {task.description || 'No description.'}
+              {task.description || "No description."}
             </p>
 
             {/* Task Meta */}
@@ -177,7 +221,11 @@ function SortableTask({ task }: { task: Task }) {
                   </div>
                 )}
               </div>
-              <div className={`w-2 h-2 rounded-full shrink-0 ${getPriorityColor(task.priority)}`} />
+              <div
+                className={`w-2 h-2 rounded-full shrink-0 ${getPriorityColor(
+                  task.priority
+                )}`}
+              />
             </div>
           </div>
         </CardContent>
@@ -186,14 +234,82 @@ function SortableTask({ task }: { task: Task }) {
   );
 }
 
+function TaskOverlay({ task }: { task: Task }) {
+  function getPriorityColor(priority: "low" | "medium" | "high"): string {
+    switch (priority) {
+      case "high":
+        return "bg-red-500";
+
+      case "medium":
+        return "bg-yellow-500";
+      case "low":
+        return "bg-green-500";
+      default:
+        return "bg-yellow-500";
+    }
+  }
+
+  return (
+    <Card className="cursor-pointer hover:shadow-md transition-shadow">
+      <CardContent className="p-3 sm:p-4">
+        <div className="space-y-2 sm:space-y-3">
+          {/* Task Header */}
+          <div className="flex items-start justify-between">
+            <h4 className="font-medium text-gray-900 text-sm leading-tight flex-1 min-w-0 pr-2">
+              {task.title}
+            </h4>
+          </div>
+          {/*Task Description */}
+          <p className="text-xs text-gray-600 line-clamp-2">
+            {task.description || "No description."}
+          </p>
+
+          {/* Task Meta */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-1 sm:space-x-2 min-w-0">
+              {task.assignee && (
+                <div className="flex items-center space-x-1 text-xs text-gray-500">
+                  <User className="h-3 w-3" />
+                  <span className="truncate">{task.assignee}</span>
+                </div>
+              )}
+              {task.due_date && (
+                <div className="flex items-center space-x-1 text-xs text-gray-500">
+                  <Calendar className="h-3 w-3" />
+                  <span className="truncate">{task.due_date}</span>
+                </div>
+              )}
+            </div>
+            <div
+              className={`w-2 h-2 rounded-full shrink-0 ${getPriorityColor(
+                task.priority
+              )}`}
+            />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function BoardPage() {
   const { id } = useParams<{ id: string }>();
-  const { board, updateBoard, columns, createRealTask } = useBoard(id);
+  const { board, updateBoard, columns, createRealTask, setColumns, moveTask } =
+    useBoard(id);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newColor, setNewColor] = useState('');
+  const [newTitle, setNewTitle] = useState("");
+  const [newColor, setNewColor] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
   async function handleUpdateBoard(e: React.FormEvent) {
     e.preventDefault();
@@ -214,11 +330,11 @@ export default function BoardPage() {
     description?: string;
     assignee?: string;
     dueDate?: string;
-    priority: 'low' | 'medium' | 'high';
+    priority: "low" | "medium" | "high";
   }) {
     const targetColumn = columns[0];
     if (!targetColumn) {
-      throw new Error('No column available to add task');
+      throw new Error("No column available to add task");
     }
 
     await createRealTask(targetColumn.id, taskData);
@@ -229,18 +345,94 @@ export default function BoardPage() {
     const formData = new FormData(e.currentTarget);
 
     const taskData = {
-      title: formData.get('title') as string,
-      description: (formData.get('description') as string) || undefined,
-      assignee: (formData.get('assignee') as string) || undefined,
-      dueDate: (formData.get('dueDate') as string) || undefined,
-      priority: (formData.get('priority') as 'low' | 'medium' | 'high') || 'medium',
+      title: formData.get("title") as string,
+      description: (formData.get("description") as string) || undefined,
+      assignee: (formData.get("assignee") as string) || undefined,
+      dueDate: (formData.get("dueDate") as string) || undefined,
+      priority:
+        (formData.get("priority") as "low" | "medium" | "high") || "medium",
     };
 
     if (taskData.title.trim()) {
       await createTask(taskData);
 
-      const trigger = document.querySelector('[data-state="open"') as HTMLElement;
+      const trigger = document.querySelector(
+        '[data-state="open"'
+      ) as HTMLElement;
       if (trigger) trigger.click();
+    }
+  }
+
+  function handleDragStart(event: DragStartEvent) {
+    const taskId = event.active.id as string;
+    const task = columns
+      .flatMap((col) => col.tasks)
+      .find((task) => task.id === taskId);
+
+    if (task) {
+      setActiveTask(task);
+    }
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    const sourceColumn = columns.find((col) =>
+      col.tasks.some((task) => task.id === activeId)
+    );
+
+    const targetColumn = columns.find((col) =>
+      col.tasks.some((task) => task.id === overId)
+    );
+
+    if (!sourceColumn || !targetColumn) return;
+
+    if (sourceColumn.id === targetColumn.id) {
+      const activeIndex = sourceColumn.tasks.findIndex(
+        (task) => task.id === activeId
+      );
+
+      const overIndex = targetColumn.tasks.findIndex(
+        (task) => task.id === overId
+      );
+
+      if (activeIndex !== overIndex) {
+        setColumns((prev: ColumnWithTasks[]) => {
+          const newColumns = [...prev];
+          const column = newColumns.find((col) => col.id === sourceColumn.id);
+          if (column) {
+            const tasks = [...column.tasks];
+            const [removed] = tasks.splice(activeIndex, 1);
+            tasks.splice(overIndex, 0, removed);
+            column.tasks = tasks;
+          }
+
+          return newColumns;
+        });
+      }
+    }
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over) return;
+
+    const taskId = active.id as string;
+    const overId = over.id as string;
+
+    const targetColumn = columns.find((col) => col.id === overId);
+    if (targetColumn) {
+      const sourceColumn = columns.find((col) =>
+        col.tasks.some((task) => task.id === taskId)
+      );
+      if (sourceColumn && sourceColumn.id !== targetColumn.id) {
+        await moveTask(taskId, targetColumn.id, targetColumn.tasks.length);
+      }
+    } else {
     }
   }
 
@@ -249,8 +441,8 @@ export default function BoardPage() {
       <NavBar
         boardTitle={board?.title}
         onEditBoard={() => {
-          setNewTitle(board?.title ?? '');
-          setNewColor(board?.color ?? '');
+          setNewTitle(board?.title ?? "");
+          setNewColor(board?.color ?? "");
           setIsEditingTitle(true);
         }}
         onFilterClick={() => {
@@ -279,24 +471,26 @@ export default function BoardPage() {
               <Label>Board Color</Label>
               <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                 {[
-                  'bg-blue-500',
-                  'bg-green-500',
-                  'bg-yellow-500',
-                  'bg-red-500',
-                  'bg-purple-500',
-                  'bg-pink-500',
-                  'bg-indigo-500',
-                  'bg-gray-500',
-                  'bg-orange-500',
-                  'bg-teal-500',
-                  'bg-cyan-500',
-                  'bg-emerald-500',
+                  "bg-blue-500",
+                  "bg-green-500",
+                  "bg-yellow-500",
+                  "bg-red-500",
+                  "bg-purple-500",
+                  "bg-pink-500",
+                  "bg-indigo-500",
+                  "bg-gray-500",
+                  "bg-orange-500",
+                  "bg-teal-500",
+                  "bg-cyan-500",
+                  "bg-emerald-500",
                 ].map((color, key) => (
                   <button
                     key={key}
                     type="button"
                     className={`w-8 h-8 rounded-full ${color} ${
-                      color === newColor ? 'ring-2 ring-offset-2 ring-gray-900' : ''
+                      color === newColor
+                        ? "ring-2 ring-offset-2 ring-gray-900"
+                        : ""
                     }`}
                     onClick={() => setNewColor(color)}
                   />
@@ -304,7 +498,11 @@ export default function BoardPage() {
               </div>
             </div>
             <div className="flex justify-end space-x-2">
-              <Button type="button" variant="outline" onClick={() => setIsEditingTitle(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditingTitle(false)}
+              >
                 Cancel
               </Button>
               <Button type="submit">Save Changes</Button>
@@ -317,14 +515,16 @@ export default function BoardPage() {
         <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
           <DialogHeader>
             <DialogTitle>Filter Tasks</DialogTitle>
-            <p className="text-sm text-gray-600">Filter tasks by priority, assignee, or due date</p>
+            <p className="text-sm text-gray-600">
+              Filter tasks by priority, assignee, or due date
+            </p>
           </DialogHeader>
           <div className="space-y-4 ">
             <div className="space-y-2">
               <Label>Priority</Label>
               <div className="flex flex-wrap gap-2">
-                {['low', 'medium', 'high'].map((priority, key) => (
-                  <Button key={key} variant={'outline'} size="sm">
+                {["low", "medium", "high"].map((priority, key) => (
+                  <Button key={key} variant={"outline"} size="sm">
                     {priority.charAt(0).toUpperCase() + priority.slice(1)}
                   </Button>
                 ))}
@@ -345,7 +545,7 @@ export default function BoardPage() {
               <Input type="date" />
             </div>
             <div className="flex justify-between pt-4">
-              <Button type="button" variant={'outline'}>
+              <Button type="button" variant={"outline"}>
                 Clear Filters
               </Button>
               <Button type="button" onClick={() => setIsFilterOpen(false)}>
@@ -379,12 +579,18 @@ export default function BoardPage() {
             <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
               <DialogHeader>
                 <DialogTitle>Create New Task</DialogTitle>
-                <p className="text-sm text-gray-600">Add a task to the board </p>
+                <p className="text-sm text-gray-600">
+                  Add a task to the board{" "}
+                </p>
               </DialogHeader>
               <form className="space-y-4" onSubmit={handleCreateTask}>
                 <div className="space-y-2">
                   <Label>Title *</Label>
-                  <Input id="title" name="title" placeholder="Enter task title" />
+                  <Input
+                    id="title"
+                    name="title"
+                    placeholder="Enter task title"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Description</Label>
@@ -397,7 +603,11 @@ export default function BoardPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Assignee</Label>
-                  <Input id="assignee" name="assignee" placeholder="Who should do this ?" />
+                  <Input
+                    id="assignee"
+                    name="assignee"
+                    placeholder="Who should do this ?"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Priority</Label>
@@ -406,7 +616,7 @@ export default function BoardPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {['low', 'medium', 'high'].map((priority, key) => (
+                      {["low", "medium", "high"].map((priority, key) => (
                         <SelectItem key={key} value={priority}>
                           {priority.charAt(0).toUpperCase() + priority.slice(1)}
                         </SelectItem>
@@ -429,7 +639,11 @@ export default function BoardPage() {
         {/* Board Columns */}
 
         <DndContext
-        // sensors={} collisionDetection={} onDragStart={} onDragOver={} onDragEnd={}
+          sensors={sensors}
+          collisionDetection={rectIntersection}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
         >
           <div className="flex flex-col lg:flex-row lg:space-x-6 lg:overflow-x-auto lg:pb-6 lg:px-2 lg:-mx-2 lg:[&::-webkit-scrollbar]:h-2 lg:[&::-webkit-scrollbar-track]:bg-gray-100 lg:[&::-webkit-scrollbar-thumb]:bg-gray-300 lg:[&::-webkit-scrollbar-thumb]:rounded-full space-y-4 lg:space-y-0">
             {columns.map((column, key) => (
@@ -441,7 +655,7 @@ export default function BoardPage() {
               >
                 <SortableContext
                   items={column.tasks.map((task) => task.id)}
-                  // strategy={}
+                  strategy={verticalListSortingStrategy}
                 >
                   <div className="space-y-3 ">
                     {column.tasks.map((task, key) => (
@@ -451,6 +665,9 @@ export default function BoardPage() {
                 </SortableContext>
               </DroppableColumn>
             ))}
+            <DragOverlay>
+              {activeTask ? <TaskOverlay task={activeTask} /> : null}
+            </DragOverlay>
           </div>
         </DndContext>
       </main>
