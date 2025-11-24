@@ -89,10 +89,6 @@ export default function DashboardPage() {
             Welcome back, {user?.firstName ?? user?.emailAddresses[0].emailAddress}! 👋
           </h1>
           <p className="text-gray-600">Here's what's happening with your boards today.</p>
-          <Button className="w-full sm:w-auto" onClick={handleCreateBoard}>
-            <Plus />
-            Create New Board
-          </Button>
         </div>
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
