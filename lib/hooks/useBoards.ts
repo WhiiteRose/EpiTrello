@@ -86,12 +86,21 @@ export function useBoards() {
     }
   }
 
+  async function deleteBoard(boardId: string) {
+    try {
+      await boardService.deleteBoard(supabase!, boardId);
+      setBoards((prev) => prev.filter((board) => board.id !== boardId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete board.');
+    }
+  }
+
   const boardsWithTaskCount: BoardWithTaskCount[] = boards.map((board: Board) => ({
     ...board,
     taskCount: boardTaskCounts[board.id] ?? 0,
   }));
 
-  return { boards, boardsWithTaskCount, boardTaskCounts, loading, error, createBoard };
+  return { boards, boardsWithTaskCount, boardTaskCounts, loading, error, createBoard, deleteBoard };
 }
 
 export function useBoard(boardId: string) {
