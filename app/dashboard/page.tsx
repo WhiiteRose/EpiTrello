@@ -13,7 +13,7 @@ import { useState } from 'react';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { usePlan } from '@/lib/contexts/PlanContext';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
   const { user } = useUser();
