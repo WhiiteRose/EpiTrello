@@ -7,17 +7,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useBoards } from '@/lib/hooks/useBoards';
 import { useUser } from '@clerk/nextjs';
-import { Filter, Grid3x3, List, Loader2, Plus, Rocket, Search, Trello } from 'lucide-react';
+import { Filter, Grid3x3, List, Loader2, Plus, Rocket, Search, Trash, Trello } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { usePlan } from '@/lib/contexts/PlanContext';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
   const { user } = useUser();
-  const { createBoard, boards, boardsWithTaskCount, loading, error } = useBoards();
+  const { createBoard, deleteBoard, boards, boardsWithTaskCount, loading, error } = useBoards();
+  const router = useRouter();
+  const { isFreeUser } = usePlan();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+  const [showUpgradeDialog, setshowUpgradeDialog] = useState<boolean>(false);
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; boardId: string | null }>({
+    open: false,
+    boardId: null,
+  });
 
   const [filters, setFilters] = useState({
     search: '',
@@ -60,8 +69,24 @@ export default function DashboardPage() {
     });
   }
 
+  const canCreateBoard = !isFreeUser || boards.length < 1;
+
   const handleCreateBoard = async () => {
+    if (!canCreateBoard) {
+      setshowUpgradeDialog(true);
+      return;
+    }
     await createBoard({ title: 'New Board' });
+  };
+
+  const handleDeleteBoard = async (boardId: string) => {
+    setDeleteModal({ open: true, boardId });
+  };
+
+  const confirmDeleteBoard = async () => {
+    if (!deleteModal.boardId) return;
+    await deleteBoard(deleteModal.boardId);
+    setDeleteModal({ open: false, boardId: null });
   };
 
   if (loading) {
@@ -159,6 +184,11 @@ export default function DashboardPage() {
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Your boards</h2>
               <p className="text-gray-600">Manage your projects and tasks</p>
+              {isFreeUser && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Free plan: {boards.length}/1 boards used
+                </p>
+              )}
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
               <div className="flex items-center space-x-2 rounded bg-white border p-1">
@@ -209,9 +239,22 @@ export default function DashboardPage() {
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <div className={`w-4 h-4 ${board.color} rounded`} />
-                        <Badge className="text-xs" variant="secondary">
-                          New
-                        </Badge>
+                        <div className="flex items-center space-x-2">
+                          <Badge className="text-xs" variant="secondary">
+                            New
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-500 hover:text-red-600"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleDeleteBoard(board.id);
+                            }}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="p-4 sm:p-6">
@@ -240,16 +283,29 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div>
-              {boards.map((board, key) => (
+              {filteredBoards.map((board, key) => (
                 <div key={key} className={key > 0 ? 'mt-4' : ''}>
                   <Link href={`/boards/${board.id}`}>
                     <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                           <div className={`w-4 h-4 ${board.color} rounded`} />
-                          <Badge className="text-xs" variant="secondary">
-                            New
-                          </Badge>
+                          <div className="flex items-center space-x-2">
+                            <Badge className="text-xs" variant="secondary">
+                              New
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-gray-500 hover:text-red-600"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                handleDeleteBoard(board.id);
+                              }}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent className="p-4 sm:p-6">
@@ -378,6 +434,51 @@ export default function DashboardPage() {
               </Button>
               <Button onClick={() => setIsFilterOpen(false)}>Apply Filters</Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upgrade Dialog */}
+      <Dialog open={showUpgradeDialog} onOpenChange={setshowUpgradeDialog}>
+        <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+          <DialogHeader>
+            <DialogTitle>Upgrade to Create More Boards</DialogTitle>
+            <p className="text-sm text-gray-600">
+              Free users can only create one board. Upgrade to Pro or Entreprise to create unlimited
+              boards.
+            </p>
+          </DialogHeader>
+          <div className="flex justify-end space-x-4 pt-4">
+            <Button variant="outline" onClick={() => setshowUpgradeDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => router.push('/pricing')}>View Plans</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <Dialog
+        open={deleteModal.open}
+        onOpenChange={(open) => setDeleteModal((prev) => ({ ...prev, open }))}
+      >
+        <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+          <DialogHeader>
+            <DialogTitle>Delete Board</DialogTitle>
+            <p className="text-sm text-gray-600">
+              Are you sure you want to delete this board ? This action cannot be undone.
+            </p>
+          </DialogHeader>
+          <div className="flex justify-end space-x-4 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteModal({ open: false, boardId: null })}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteBoard}>
+              Delete
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
