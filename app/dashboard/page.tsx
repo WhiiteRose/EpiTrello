@@ -12,12 +12,15 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { usePlan } from '@/lib/contexts/PlanContext';
 
 export default function DashboardPage() {
   const { user } = useUser();
   const { createBoard, boards, boardsWithTaskCount, loading, error } = useBoards();
+  const { isFreeUser } = usePlan();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+  const [showUpgradeDialog, setshowUpgradeDialog] = useState<boolean>(false);
 
   const [filters, setFilters] = useState({
     search: '',
@@ -60,7 +63,12 @@ export default function DashboardPage() {
     });
   }
 
+  const canCreateBoard = !isFreeUser || boards.length < 1;
+
   const handleCreateBoard = async () => {
+    if (!canCreateBoard) {
+      setshowUpgradeDialog(true);
+    }
     await createBoard({ title: 'New Board' });
   };
 
@@ -159,6 +167,11 @@ export default function DashboardPage() {
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Your boards</h2>
               <p className="text-gray-600">Manage your projects and tasks</p>
+              {isFreeUser && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Free plan: {boards.length}/1 boards used
+                </p>
+              )}
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
               <div className="flex items-center space-x-2 rounded bg-white border p-1">
@@ -379,6 +392,19 @@ export default function DashboardPage() {
               <Button onClick={() => setIsFilterOpen(false)}>Apply Filters</Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upgrade Dialog */}
+      <Dialog open={showUpgradeDialog} onOpenChange={setshowUpgradeDialog}>
+        <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+          <DialogHeader>
+            <DialogTitle>Upgrade to Create More Boards</DialogTitle>
+            <p className="text-sm text-gray-600">
+              Free users can only create one board. Upgrade to Pro or Entreprise to create unlimited
+              boards.
+            </p>
+          </DialogHeader>
         </DialogContent>
       </Dialog>
     </div>
