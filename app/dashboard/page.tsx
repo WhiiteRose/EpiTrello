@@ -13,10 +13,12 @@ import { useState } from 'react';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { usePlan } from '@/lib/contexts/PlanContext';
+import { useRouter } from 'next/router';
 
 export default function DashboardPage() {
   const { user } = useUser();
   const { createBoard, boards, boardsWithTaskCount, loading, error } = useBoards();
+  const router = useRouter();
   const { isFreeUser } = usePlan();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
@@ -405,6 +407,12 @@ export default function DashboardPage() {
               boards.
             </p>
           </DialogHeader>
+          <div className="flex justify-end space-x-4 pt-4">
+            <Button variant="outline" onClick={() => setshowUpgradeDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => router.push('/pricing')}>View Plans</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
