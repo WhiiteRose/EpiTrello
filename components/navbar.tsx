@@ -1,11 +1,17 @@
-'use client';
+"use client";
 
-import { SignInButton, SignUpButton, UserButton, useUser } from '@clerk/nextjs';
-import { ArrowLeft, ArrowRight, Filter, MoreHorizontal, Trello } from 'lucide-react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Badge } from './ui/badge';
-import { Button } from './ui/button';
+import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Filter,
+  MoreHorizontal,
+  Trello,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 
 interface Props {
   boardTitle?: string;
@@ -15,13 +21,18 @@ interface Props {
   filterCount?: number;
 }
 
-export default function NavBar({ boardTitle, onEditBoard, onFilterClick, filterCount = 0 }: Props) {
+export default function NavBar({
+  boardTitle,
+  onEditBoard,
+  onFilterClick,
+  filterCount = 0,
+}: Props) {
   const { isSignedIn, user } = useUser();
   const pathname = usePathname();
 
-  const isHomePage = pathname === '/';
-  const isDashboardPage = pathname === '/dashboard';
-  const isBoardPage = pathname.startsWith('/boards/');
+  // const isHomePage = pathname === '/';
+  const isDashboardPage = pathname === "/dashboard";
+  const isBoardPage = pathname.startsWith("/boards/");
 
   if (isBoardPage) {
     return (
@@ -41,7 +52,9 @@ export default function NavBar({ boardTitle, onEditBoard, onFilterClick, filterC
               <div className="flex items-center space-x-1 sm:space-x-2 min-w-0">
                 <Trello className="text-blue-600" />
                 <div className="text-lg items-center space-x-1 sm:space-x-2 miw-w-0">
-                  <span className="text-lg font-bold text-gray-900 truncate">{boardTitle}</span>
+                  <span className="text-lg font-bold text-gray-900 truncate">
+                    {boardTitle}
+                  </span>
                   {onEditBoard && (
                     <Button
                       variant="ghost"
@@ -62,7 +75,7 @@ export default function NavBar({ boardTitle, onEditBoard, onFilterClick, filterC
                   variant="outline"
                   size="sm"
                   className={`text-xs sm:text-sm ${
-                    filterCount > 0 ? 'bg-blue-100 border-blue-200' : '0'
+                    filterCount > 0 ? "bg-blue-100 border-blue-200" : "0"
                   }`}
                   onClick={onFilterClick}
                 >
@@ -90,7 +103,9 @@ export default function NavBar({ boardTitle, onEditBoard, onFilterClick, filterC
         <div className="container mx-auto px-4 py-3 sm:py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Trello className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
-            <span className="text-xl sm:text-2xl font-bold text-gray-900">EpiTrello</span>
+            <span className="text-xl sm:text-2xl font-bold text-gray-900">
+              EpiTrello
+            </span>
           </div>
           <div className="flex items-center spaxe-x-2 sm:space-x-4">
             <UserButton />
@@ -104,7 +119,9 @@ export default function NavBar({ boardTitle, onEditBoard, onFilterClick, filterC
       <div className="container mx-auto px-4 py-3 sm:py-4 flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Trello className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
-          <span className="text-xl sm:text-2xl font-bold text-gray-900">EpiTrello</span>
+          <span className="text-xl sm:text-2xl font-bold text-gray-900">
+            EpiTrello
+          </span>
         </div>
         <div className="flex items-center spaxe-x-2 sm:space-x-4">
           {isSignedIn ? (
@@ -112,7 +129,7 @@ export default function NavBar({ boardTitle, onEditBoard, onFilterClick, filterC
               <span className="text-xs sm:text-sm text-gray-600 hidden sm:block">
                 Welcome, {user.firstName ?? user.emailAddresses[0].emailAddress}
               </span>
-              <Link href={'/dashboard'}>
+              <Link href={"/dashboard"}>
                 <Button size="sm" className="text-xs sm:text-sm">
                   Go to Dashboard <ArrowRight />
                 </Button>
@@ -121,7 +138,11 @@ export default function NavBar({ boardTitle, onEditBoard, onFilterClick, filterC
           ) : (
             <div>
               <SignInButton>
-                <Button variant="ghost" size="sm" className="text-xs sm:text-sm">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs sm:text-sm"
+                >
                   Sign In
                 </Button>
               </SignInButton>
