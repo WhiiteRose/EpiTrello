@@ -1,5 +1,12 @@
 "use client";
-import { createContext, useContext, useEffect, useState, useMemo } from "react";
+
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { SupabaseClient, createClient } from "@supabase/supabase-js";
 import { useSession } from "@clerk/nextjs";
 
@@ -19,56 +26,47 @@ export default function SupabaseProvider({
   children: React.ReactNode;
 }) {
   const { session } = useSession();
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const configError = useMemo(() => {
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return "Missing Supabase configuration. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.";
+    }
+    return null;
+  }, [supabaseUrl, supabaseAnonKey]);
+
   const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
-  const [isLoaded, setIsLoaded] = useState<boolean>(false);
-  const [configError, setConfigError] = useState<string | null>(null);
+  const isLoaded = !configError && supabase !== null;
 
   useEffect(() => {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (configError) return;
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      const message = "Missing Supabase configuration.";
-      console.error(message);
-      setConfigError(message);
-      setIsLoaded(true);
-      return;
-    }
+    let cancelled = false;
 
-    const client = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        fetch: async (url, options = {}) => {
-          const clkToken = await session?.getToken({ template: "supabase" });
-          const headers = new Headers(options.headers);
-          if (clkToken) {
-            headers.set("Authorization", `Bearer ${clkToken}`);
-          }
-          return fetch(url, { ...options, headers });
-        },
-      },
-    });
+    (async () => {
+      const token = session ? await session.getToken().catch(() => null) : null;
+      if (cancelled) return;
 
-    setSupabase(client);
-    setConfigError(null);
-    setIsLoaded(true);
-  }, [session]);
+      const client = createClient(supabaseUrl!, supabaseAnonKey!, {
+        accessToken: async () => token,
+      });
 
-  const value = useMemo(
-    () => ({
-      supabase,
-      isLoaded,
-    }),
-    [supabase, isLoaded]
-  );
+      setSupabase(client);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session, configError, supabaseUrl, supabaseAnonKey]);
 
   return (
-    <Context.Provider value={value}>
+    <Context.Provider value={{ supabase, isLoaded }}>
       {configError ? (
-        <div className="p-4 text-red-500 font-bold">{configError}</div>
+        <div>{configError}</div>
       ) : !isLoaded ? (
-        <div className="flex items-center justify-center h-screen">
-          Loading...
-        </div>
+        <div>Loading...</div>
       ) : (
         children
       )}
@@ -78,7 +76,7 @@ export default function SupabaseProvider({
 
 export const useSupabase = () => {
   const context = useContext(Context);
-  if (!context) {
+  if (context === undefined) {
     throw new Error("useSupabase needs to be inside the provider");
   }
   return context;
