@@ -1,6 +1,6 @@
 "use client";
 import { useUser } from "@clerk/nextjs";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   boardDataService,
   boardService,
@@ -22,25 +22,23 @@ export function useBoards() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>();
 
-  useEffect(() => {
-    if (user) {
-      loadBoards();
-    }
-  }, [user, supabase]);
-
-  async function loadBoards() {
-    if (!user) return;
+  const loadBoards = useCallback(async () => {
+    if (!user || !supabase) return;
     try {
       setLoading(true);
       setError(null);
-      const data = await boardService.getBoards(supabase!, user.id);
+      const data = await boardService.getBoards(supabase, user.id);
       setBoards(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load board.");
     } finally {
       setLoading(false);
     }
-  }
+  }, [user, supabase]);
+
+  useEffect(() => {
+    loadBoards();
+  }, [loadBoards]);
 
   useEffect(() => {
     if (!supabase || boards.length === 0) {
@@ -135,19 +133,13 @@ export function useBoard(boardId: string) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>();
 
-  useEffect(() => {
-    if (boardId) {
-      loadBoard();
-    }
-  }, [boardId, supabase]);
-
-  async function loadBoard() {
-    if (!boardId) return;
+  const loadBoard = useCallback(async () => {
+    if (!boardId || !supabase) return;
     try {
       setLoading(true);
       setError(null);
       const data = await boardDataService.getBoardWithColumns(
-        supabase!,
+        supabase,
         boardId
       );
       setBoard(data.board);
@@ -157,7 +149,11 @@ export function useBoard(boardId: string) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [boardId, supabase]);
+
+  useEffect(() => {
+    loadBoard();
+  }, [loadBoard]);
 
   async function updateBoard(boardId: string, updates: Partial<Board>) {
     try {
