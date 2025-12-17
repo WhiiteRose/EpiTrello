@@ -1,9 +1,14 @@
-'use client';
-import { useUser } from '@clerk/nextjs';
-import { useEffect, useState } from 'react';
-import { boardDataService, boardService, columnService, taskService } from '../services';
-import { Board, ColumnWithTasks, Task } from '../supabase/models';
-import { useSupabase } from '../supabase/SupabaseProvider';
+"use client";
+import { useUser } from "@clerk/nextjs";
+import { useEffect, useState } from "react";
+import {
+  boardDataService,
+  boardService,
+  columnService,
+  taskService,
+} from "../services";
+import { Board, ColumnWithTasks, Task } from "../supabase/models";
+import { useSupabase } from "../supabase/SupabaseProvider";
 
 export type BoardWithTaskCount = Board & { taskCount: number };
 
@@ -11,9 +16,11 @@ export function useBoards() {
   const { user } = useUser();
   const { supabase } = useSupabase();
   const [boards, setBoards] = useState<Board[]>([]);
-  const [boardTaskCounts, setBoardTaskCounts] = useState<Record<string, number>>({});
+  const [boardTaskCounts, setBoardTaskCounts] = useState<
+    Record<string, number>
+  >({});
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<String | null>();
+  const [error, setError] = useState<string | null>();
 
   useEffect(() => {
     if (user) {
@@ -29,7 +36,7 @@ export function useBoards() {
       const data = await boardService.getBoards(supabase!, user.id);
       setBoards(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load board.');
+      setError(err instanceof Error ? err.message : "Failed to load board.");
     } finally {
       setLoading(false);
     }
@@ -49,7 +56,7 @@ export function useBoards() {
           boards.map(async (board) => {
             const tasks = await taskService.getTasksByBoard(supabase, board.id);
             return { boardId: board.id, count: tasks.length };
-          }),
+          })
         );
 
         if (!isMounted) return;
@@ -58,10 +65,10 @@ export function useBoards() {
           counts.reduce((acc, { boardId, count }) => {
             acc[boardId] = count;
             return acc;
-          }, {} as Record<string, number>),
+          }, {} as Record<string, number>)
         );
       } catch (err) {
-        console.error('Failed to load task counts', err);
+        console.error("Failed to load task counts", err);
       }
     };
 
@@ -72,17 +79,24 @@ export function useBoards() {
     };
   }, [boards, supabase]);
 
-  async function createBoard(boardData: { title: string; description?: string; color?: string }) {
-    if (!user) throw new Error('User not authenticated');
+  async function createBoard(boardData: {
+    title: string;
+    description?: string;
+    color?: string;
+  }) {
+    if (!user) throw new Error("User not authenticated");
 
     try {
-      const newBoard = await boardDataService.createBoardWithDefaultColumns(supabase!, {
-        ...boardData,
-        userId: user.id,
-      });
+      const newBoard = await boardDataService.createBoardWithDefaultColumns(
+        supabase!,
+        {
+          ...boardData,
+          userId: user.id,
+        }
+      );
       setBoards((prev) => [newBoard, ...prev]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create board.');
+      setError(err instanceof Error ? err.message : "Failed to create board.");
     }
   }
 
@@ -91,16 +105,26 @@ export function useBoards() {
       await boardService.deleteBoard(supabase!, boardId);
       setBoards((prev) => prev.filter((board) => board.id !== boardId));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete board.');
+      setError(err instanceof Error ? err.message : "Failed to delete board.");
     }
   }
 
-  const boardsWithTaskCount: BoardWithTaskCount[] = boards.map((board: Board) => ({
-    ...board,
-    taskCount: boardTaskCounts[board.id] ?? 0,
-  }));
+  const boardsWithTaskCount: BoardWithTaskCount[] = boards.map(
+    (board: Board) => ({
+      ...board,
+      taskCount: boardTaskCounts[board.id] ?? 0,
+    })
+  );
 
-  return { boards, boardsWithTaskCount, boardTaskCounts, loading, error, createBoard, deleteBoard };
+  return {
+    boards,
+    boardsWithTaskCount,
+    boardTaskCounts,
+    loading,
+    error,
+    createBoard,
+    deleteBoard,
+  };
 }
 
 export function useBoard(boardId: string) {
@@ -109,7 +133,7 @@ export function useBoard(boardId: string) {
   const [board, setBoard] = useState<Board | null>(null);
   const [columns, setColumns] = useState<ColumnWithTasks[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<String | null>();
+  const [error, setError] = useState<string | null>();
 
   useEffect(() => {
     if (boardId) {
@@ -122,11 +146,14 @@ export function useBoard(boardId: string) {
     try {
       setLoading(true);
       setError(null);
-      const data = await boardDataService.getBoardWithColumns(supabase!, boardId);
+      const data = await boardDataService.getBoardWithColumns(
+        supabase!,
+        boardId
+      );
       setBoard(data.board);
       setColumns(data.columsWithTasks);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load boards.');
+      setError(err instanceof Error ? err.message : "Failed to load boards.");
     } finally {
       setLoading(false);
     }
@@ -134,11 +161,17 @@ export function useBoard(boardId: string) {
 
   async function updateBoard(boardId: string, updates: Partial<Board>) {
     try {
-      const updatedBoard = await boardService.updateBoard(supabase!, boardId, updates);
+      const updatedBoard = await boardService.updateBoard(
+        supabase!,
+        boardId,
+        updates
+      );
       setBoard(updatedBoard);
       return updatedBoard;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update the board.');
+      setError(
+        err instanceof Error ? err.message : "Failed to update the board."
+      );
     }
   }
 
@@ -149,8 +182,8 @@ export function useBoard(boardId: string) {
       description?: string;
       assignee?: string;
       dueDate?: string;
-      priority: 'low' | 'medium' | 'high';
-    },
+      priority: "low" | "medium" | "high";
+    }
   ) {
     try {
       const newTask = await taskService.createTask(supabase!, {
@@ -159,20 +192,29 @@ export function useBoard(boardId: string) {
         assignee: taskData.assignee || null,
         due_date: taskData.dueDate || null,
         column_id: columnId,
-        sort_order: columns.find((col) => col.id === columnId)?.tasks.length || 0,
-        priority: taskData.priority || 'medium',
+        sort_order:
+          columns.find((col) => col.id === columnId)?.tasks.length || 0,
+        priority: taskData.priority || "medium",
       });
 
       setColumns((prev) =>
-        prev.map((col) => (col.id === columnId ? { ...col, tasks: [...col.tasks, newTask] } : col)),
+        prev.map((col) =>
+          col.id === columnId ? { ...col, tasks: [...col.tasks, newTask] } : col
+        )
       );
       return newTask;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create the task.');
+      setError(
+        err instanceof Error ? err.message : "Failed to create the task."
+      );
     }
   }
 
-  async function moveTask(taskId: string, newColumnId: string, newOrder: number) {
+  async function moveTask(
+    taskId: string,
+    newColumnId: string,
+    newOrder: number
+  ) {
     try {
       await taskService.moveTask(supabase!, taskId, newColumnId, newOrder);
 
@@ -201,12 +243,12 @@ export function useBoard(boardId: string) {
         return newColumns;
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to move the task.');
+      setError(err instanceof Error ? err.message : "Failed to move the task.");
     }
   }
 
   async function createColumn(title: string) {
-    if (!board || !user) throw new Error('Board is not loaded');
+    if (!board || !user) throw new Error("Board is not loaded");
 
     try {
       const newColumn = await columnService.createColumn(supabase!, {
@@ -218,20 +260,26 @@ export function useBoard(boardId: string) {
       setColumns((prev) => [...prev, { ...newColumn, tasks: [] }]);
       return newColumn;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create column.');
+      setError(err instanceof Error ? err.message : "Failed to create column.");
     }
   }
 
   async function updateColumn(columnId: string, title: string) {
     try {
-      const updatedColumn = await columnService.updateColumnTitle(supabase!, columnId, title);
+      const updatedColumn = await columnService.updateColumnTitle(
+        supabase!,
+        columnId,
+        title
+      );
       setColumns((prev) =>
-        prev.map((col) => (col.id === columnId ? { ...col, ...updatedColumn } : col)),
+        prev.map((col) =>
+          col.id === columnId ? { ...col, ...updatedColumn } : col
+        )
       );
 
       return updatedColumn;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create column.');
+      setError(err instanceof Error ? err.message : "Failed to create column.");
     }
   }
 
