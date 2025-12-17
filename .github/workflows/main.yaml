@@ -1,0 +1,27 @@
+name: Verification du code
+on: [push]
+
+jobs:
+  check-code:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installation de Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Installation des dépendances
+        run: npm install
+
+      - name: Verification des erreurs (Lint)
+        run: npm run lint
+
+      - name: Test du Build (Simulation)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_bm9ibGUtZG92ZS03Mi5jbGVyay5hY2NvdW50cy5kZXYk
+          CLERK_SECRET_KEY: sk_test_nqyrqiZG51GQAwGjWpsYC4OUyKE2vpOrANYRPaPlex
+          NEXT_PUBLIC_SUPABASE_URL: https://bvoeglrycpwuboazzrht.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2b2VnbHJ5Y3B3dWJvYXp6cmh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE3NTUwNjksImV4cCI6MjA3NzMzMTA2OX0.V4D_KtF8NHIDKyL458ZDHvgAwidoCPtwLCkL96wXpF8
