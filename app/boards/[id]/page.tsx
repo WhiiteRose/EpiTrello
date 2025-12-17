@@ -1,27 +1,27 @@
-'use client';
-import NavBar from '@/components/navbar';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+"use client";
+import NavBar from "@/components/navbar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { useBoard } from '@/lib/hooks/useBoards';
-import { ColumnWithTasks, Task } from '@/lib/supabase/models';
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useBoard } from "@/lib/hooks/useBoards";
+import { ColumnWithTasks, Task } from "@/lib/supabase/models";
 import {
   DndContext,
   DragEndEvent,
@@ -33,12 +33,16 @@ import {
   useDroppable,
   useSensor,
   useSensors,
-} from '@dnd-kit/core';
-import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { Calendar, MoreHorizontal, Plus, User } from 'lucide-react';
-import { useParams } from 'next/navigation';
-import { useState } from 'react';
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Calendar, MoreHorizontal, Plus, User } from "lucide-react";
+import { useParams } from "next/navigation";
+import { useState } from "react";
 
 function DroppableColumn({
   column,
@@ -48,17 +52,21 @@ function DroppableColumn({
 }: {
   column: ColumnWithTasks;
   children: React.ReactNode;
-  onCreateTask: (taskData: any) => Promise<void>;
+  onCreateTask: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
   onEditColumn: (column: ColumnWithTasks) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   return (
     <div
       ref={setNodeRef}
-      className={`w-full lg:shrink-0 lg:w-80 ${isOver ? 'bg-blue-50 rounded-lg' : ''}`}
+      className={`w-full lg:shrink-0 lg:w-80 ${
+        isOver ? "bg-blue-50 rounded-lg" : ""
+      }`}
     >
       <div
-        className={`bf-white rounded-lg shadow-sm border ${isOver ? 'ring-2 ring-blue-300' : ''}`}
+        className={`bf-white rounded-lg shadow-sm border ${
+          isOver ? "ring-2 ring-blue-300" : ""
+        }`}
       >
         {/* Column Header */}
         <div className="p-3 sm:p-4 border-b">
@@ -83,10 +91,13 @@ function DroppableColumn({
         </div>
         {/* column content */}
         <div className="p-2">
-          {children}{' '}
+          {children}{" "}
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="ghost" className="w-full mt-3 text-gray-500 hover:text-gray-700">
+              <Button
+                variant="ghost"
+                className="w-full mt-3 text-gray-500 hover:text-gray-700"
+              >
                 <Plus />
                 Add Task
               </Button>
@@ -95,12 +106,18 @@ function DroppableColumn({
             <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
               <DialogHeader>
                 <DialogTitle>Create New Task</DialogTitle>
-                <p className="text-sm text-gray-600">Add a task to the board </p>
+                <p className="text-sm text-gray-600">
+                  Add a task to the board{" "}
+                </p>
               </DialogHeader>
               <form className="space-y-4" onSubmit={onCreateTask}>
                 <div className="space-y-2">
                   <Label>Title *</Label>
-                  <Input id="title" name="title" placeholder="Enter task title" />
+                  <Input
+                    id="title"
+                    name="title"
+                    placeholder="Enter task title"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Description</Label>
@@ -113,7 +130,11 @@ function DroppableColumn({
                 </div>
                 <div className="space-y-2">
                   <Label>Assignee</Label>
-                  <Input id="assignee" name="assignee" placeholder="Who should do this ?" />
+                  <Input
+                    id="assignee"
+                    name="assignee"
+                    placeholder="Who should do this ?"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Priority</Label>
@@ -122,7 +143,7 @@ function DroppableColumn({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {['low', 'medium', 'high'].map((priority, key) => (
+                      {["low", "medium", "high"].map((priority, key) => (
                         <SelectItem key={key} value={priority}>
                           {priority.charAt(0).toUpperCase() + priority.slice(1)}
                         </SelectItem>
@@ -147,7 +168,14 @@ function DroppableColumn({
 }
 
 function SortableTask({ task }: { task: Task }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: task.id,
   });
 
@@ -156,17 +184,17 @@ function SortableTask({ task }: { task: Task }) {
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
-  function getPriorityColor(priority: 'low' | 'medium' | 'high'): string {
+  function getPriorityColor(priority: "low" | "medium" | "high"): string {
     switch (priority) {
-      case 'high':
-        return 'bg-red-500';
+      case "high":
+        return "bg-red-500";
 
-      case 'medium':
-        return 'bg-yellow-500';
-      case 'low':
-        return 'bg-green-500';
+      case "medium":
+        return "bg-yellow-500";
+      case "low":
+        return "bg-green-500";
       default:
-        return 'bg-yellow-500';
+        return "bg-yellow-500";
     }
   }
 
@@ -183,7 +211,7 @@ function SortableTask({ task }: { task: Task }) {
             </div>
             {/*Task Description */}
             <p className="text-xs text-gray-600 line-clamp-2">
-              {task.description || 'No description.'}
+              {task.description || "No description."}
             </p>
 
             {/* Task Meta */}
@@ -202,7 +230,11 @@ function SortableTask({ task }: { task: Task }) {
                   </div>
                 )}
               </div>
-              <div className={`w-2 h-2 rounded-full shrink-0 ${getPriorityColor(task.priority)}`} />
+              <div
+                className={`w-2 h-2 rounded-full shrink-0 ${getPriorityColor(
+                  task.priority
+                )}`}
+              />
             </div>
           </div>
         </CardContent>
@@ -212,17 +244,17 @@ function SortableTask({ task }: { task: Task }) {
 }
 
 function TaskOverlay({ task }: { task: Task }) {
-  function getPriorityColor(priority: 'low' | 'medium' | 'high'): string {
+  function getPriorityColor(priority: "low" | "medium" | "high"): string {
     switch (priority) {
-      case 'high':
-        return 'bg-red-500';
+      case "high":
+        return "bg-red-500";
 
-      case 'medium':
-        return 'bg-yellow-500';
-      case 'low':
-        return 'bg-green-500';
+      case "medium":
+        return "bg-yellow-500";
+      case "low":
+        return "bg-green-500";
       default:
-        return 'bg-yellow-500';
+        return "bg-yellow-500";
     }
   }
 
@@ -238,7 +270,7 @@ function TaskOverlay({ task }: { task: Task }) {
           </div>
           {/*Task Description */}
           <p className="text-xs text-gray-600 line-clamp-2">
-            {task.description || 'No description.'}
+            {task.description || "No description."}
           </p>
 
           {/* Task Meta */}
@@ -257,7 +289,11 @@ function TaskOverlay({ task }: { task: Task }) {
                 </div>
               )}
             </div>
-            <div className={`w-2 h-2 rounded-full shrink-0 ${getPriorityColor(task.priority)}`} />
+            <div
+              className={`w-2 h-2 rounded-full shrink-0 ${getPriorityColor(
+                task.priority
+              )}`}
+            />
           </div>
         </div>
       </CardContent>
@@ -279,15 +315,17 @@ export default function BoardPage() {
   } = useBoard(id);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newColor, setNewColor] = useState('');
+  const [newTitle, setNewTitle] = useState("");
+  const [newColor, setNewColor] = useState("");
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isCreatingColumn, setIsCreatingColumn] = useState(false);
   const [isEditingColumn, setIsEditingColumn] = useState(false);
-  const [newColumnTitle, setNewColumnTitle] = useState('');
-  const [editingColumnTitle, setEditingColumnTitle] = useState('');
-  const [editingColumn, setEditingColumn] = useState<ColumnWithTasks | null>(null);
+  const [newColumnTitle, setNewColumnTitle] = useState("");
+  const [editingColumnTitle, setEditingColumnTitle] = useState("");
+  const [editingColumn, setEditingColumn] = useState<ColumnWithTasks | null>(
+    null
+  );
 
   const [filters, setFilters] = useState({
     priority: [] as string[],
@@ -301,12 +339,12 @@ export default function BoardPage() {
       activationConstraint: {
         distance: 8,
       },
-    }),
+    })
   );
 
   function handleFilterChange(
-    type: 'priority' | 'assignee' | 'dueDate',
-    value: string | string[] | null,
+    type: "priority" | "assignee" | "dueDate",
+    value: string | string[] | null
   ) {
     setFilters((prev) => ({
       ...prev,
@@ -341,39 +379,44 @@ export default function BoardPage() {
     description?: string;
     assignee?: string;
     dueDate?: string;
-    priority: 'low' | 'medium' | 'high';
+    priority: "low" | "medium" | "high";
   }) {
     const targetColumn = columns[0];
     if (!targetColumn) {
-      throw new Error('No column available to add task');
+      throw new Error("No column available to add task");
     }
 
     await createRealTask(targetColumn.id, taskData);
   }
 
-  async function handleCreateTask(e: any) {
+  async function handleCreateTask(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
     const taskData = {
-      title: formData.get('title') as string,
-      description: (formData.get('description') as string) || undefined,
-      assignee: (formData.get('assignee') as string) || undefined,
-      dueDate: (formData.get('dueDate') as string) || undefined,
-      priority: (formData.get('priority') as 'low' | 'medium' | 'high') || 'medium',
+      title: formData.get("title") as string,
+      description: (formData.get("description") as string) || undefined,
+      assignee: (formData.get("assignee") as string) || undefined,
+      dueDate: (formData.get("dueDate") as string) || undefined,
+      priority:
+        (formData.get("priority") as "low" | "medium" | "high") || "medium",
     };
 
     if (taskData.title.trim()) {
       await createTask(taskData);
 
-      const trigger = document.querySelector('[data-state="open"') as HTMLElement;
+      const trigger = document.querySelector(
+        '[data-state="open"'
+      ) as HTMLElement;
       if (trigger) trigger.click();
     }
   }
 
   function handleDragStart(event: DragStartEvent) {
     const taskId = event.active.id as string;
-    const task = columns.flatMap((col) => col.tasks).find((task) => task.id === taskId);
+    const task = columns
+      .flatMap((col) => col.tasks)
+      .find((task) => task.id === taskId);
 
     if (task) {
       setActiveTask(task);
@@ -387,16 +430,24 @@ export default function BoardPage() {
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    const sourceColumn = columns.find((col) => col.tasks.some((task) => task.id === activeId));
+    const sourceColumn = columns.find((col) =>
+      col.tasks.some((task) => task.id === activeId)
+    );
 
-    const targetColumn = columns.find((col) => col.tasks.some((task) => task.id === overId));
+    const targetColumn = columns.find((col) =>
+      col.tasks.some((task) => task.id === overId)
+    );
 
     if (!sourceColumn || !targetColumn) return;
 
     if (sourceColumn.id === targetColumn.id) {
-      const activeIndex = sourceColumn.tasks.findIndex((task) => task.id === activeId);
+      const activeIndex = sourceColumn.tasks.findIndex(
+        (task) => task.id === activeId
+      );
 
-      const overIndex = targetColumn.tasks.findIndex((task) => task.id === overId);
+      const overIndex = targetColumn.tasks.findIndex(
+        (task) => task.id === overId
+      );
 
       if (activeIndex !== overIndex) {
         setColumns((prev: ColumnWithTasks[]) => {
@@ -424,18 +475,28 @@ export default function BoardPage() {
 
     const targetColumn = columns.find((col) => col.id === overId);
     if (targetColumn) {
-      const sourceColumn = columns.find((col) => col.tasks.some((task) => task.id === taskId));
+      const sourceColumn = columns.find((col) =>
+        col.tasks.some((task) => task.id === taskId)
+      );
       if (sourceColumn && sourceColumn.id !== targetColumn.id) {
         await moveTask(taskId, targetColumn.id, targetColumn.tasks.length);
       }
     } else {
       // check to see if were dropping on another task
-      const sourceColumn = columns.find((col) => col.tasks.some((task) => task.id === taskId));
-      const targetColumn = columns.find((col) => col.tasks.some((task) => task.id === overId));
+      const sourceColumn = columns.find((col) =>
+        col.tasks.some((task) => task.id === taskId)
+      );
+      const targetColumn = columns.find((col) =>
+        col.tasks.some((task) => task.id === overId)
+      );
       if (sourceColumn && targetColumn) {
-        const oldIndex = sourceColumn.tasks.findIndex((task) => task.id === taskId);
+        const oldIndex = sourceColumn.tasks.findIndex(
+          (task) => task.id === taskId
+        );
 
-        const newIndex = targetColumn.tasks.findIndex((task) => task.id === overId);
+        const newIndex = targetColumn.tasks.findIndex(
+          (task) => task.id === overId
+        );
 
         if (oldIndex !== newIndex) {
           await moveTask(taskId, targetColumn.id, newIndex);
@@ -451,7 +512,7 @@ export default function BoardPage() {
 
     await createColumn(newColumnTitle.trim());
 
-    setNewColumnTitle('');
+    setNewColumnTitle("");
     setIsCreatingColumn(false);
   }
 
@@ -462,7 +523,7 @@ export default function BoardPage() {
 
     await updateColumn(editingColumn.id, editingColumnTitle.trim());
 
-    setEditingColumnTitle('');
+    setEditingColumnTitle("");
     setIsEditingColumn(false);
     setEditingColumn(null);
   }
@@ -477,7 +538,10 @@ export default function BoardPage() {
     ...column,
     tasks: column.tasks.filter((task) => {
       // Filter by priority
-      if (filters.priority.length > 0 && !filters.priority.includes(task.priority)) {
+      if (
+        filters.priority.length > 0 &&
+        !filters.priority.includes(task.priority)
+      ) {
         return false;
       }
 
@@ -502,16 +566,17 @@ export default function BoardPage() {
         <NavBar
           boardTitle={board?.title}
           onEditBoard={() => {
-            setNewTitle(board?.title ?? '');
-            setNewColor(board?.color ?? '');
+            setNewTitle(board?.title ?? "");
+            setNewColor(board?.color ?? "");
             setIsEditingTitle(true);
           }}
           onFilterClick={() => {
             setIsFilterOpen(true);
           }}
           filterCount={Object.values(filters).reduce(
-            (count, v) => count + (Array.isArray(v) ? v.length : v !== null ? 1 : 0),
-            0,
+            (count, v) =>
+              count + (Array.isArray(v) ? v.length : v !== null ? 1 : 0),
+            0
           )}
         />
         <Dialog open={isEditingTitle} onOpenChange={setIsEditingTitle}>
@@ -535,24 +600,26 @@ export default function BoardPage() {
                 <Label>Board Color</Label>
                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                   {[
-                    'bg-blue-500',
-                    'bg-green-500',
-                    'bg-yellow-500',
-                    'bg-red-500',
-                    'bg-purple-500',
-                    'bg-pink-500',
-                    'bg-indigo-500',
-                    'bg-gray-500',
-                    'bg-orange-500',
-                    'bg-teal-500',
-                    'bg-cyan-500',
-                    'bg-emerald-500',
+                    "bg-blue-500",
+                    "bg-green-500",
+                    "bg-yellow-500",
+                    "bg-red-500",
+                    "bg-purple-500",
+                    "bg-pink-500",
+                    "bg-indigo-500",
+                    "bg-gray-500",
+                    "bg-orange-500",
+                    "bg-teal-500",
+                    "bg-cyan-500",
+                    "bg-emerald-500",
                   ].map((color, key) => (
                     <button
                       key={key}
                       type="button"
                       className={`w-8 h-8 rounded-full ${color} ${
-                        color === newColor ? 'ring-2 ring-offset-2 ring-gray-900' : ''
+                        color === newColor
+                          ? "ring-2 ring-offset-2 ring-gray-900"
+                          : ""
                       }`}
                       onClick={() => setNewColor(color)}
                     />
@@ -560,7 +627,11 @@ export default function BoardPage() {
                 </div>
               </div>
               <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setIsEditingTitle(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditingTitle(false)}
+                >
                   Cancel
                 </Button>
                 <Button type="submit">Save Changes</Button>
@@ -581,17 +652,23 @@ export default function BoardPage() {
               <div className="space-y-2">
                 <Label>Priority</Label>
                 <div className="flex flex-wrap gap-2">
-                  {['low', 'medium', 'high'].map((priority, key) => (
+                  {["low", "medium", "high"].map((priority, key) => (
                     <Button
                       onClick={() => {
-                        const newPriorities = filters.priority.includes(priority)
+                        const newPriorities = filters.priority.includes(
+                          priority
+                        )
                           ? filters.priority.filter((p) => p !== priority)
                           : [...filters.priority, priority];
 
-                        handleFilterChange('priority', newPriorities);
+                        handleFilterChange("priority", newPriorities);
                       }}
                       key={key}
-                      variant={filters.priority.includes(priority) ? 'default' : 'outline'}
+                      variant={
+                        filters.priority.includes(priority)
+                          ? "default"
+                          : "outline"
+                      }
                       size="sm"
                     >
                       {priority.charAt(0).toUpperCase() + priority.slice(1)}
@@ -604,12 +681,14 @@ export default function BoardPage() {
                 <Label>Due Date</Label>
                 <Input
                   type="date"
-                  value={filters.dueDate || ''}
-                  onChange={(e) => handleFilterChange('dueDate', e.target.value || null)}
+                  value={filters.dueDate || ""}
+                  onChange={(e) =>
+                    handleFilterChange("dueDate", e.target.value || null)
+                  }
                 />
               </div>
               <div className="flex justify-between pt-4">
-                <Button type="button" variant={'outline'} onClick={clearFilter}>
+                <Button type="button" variant={"outline"} onClick={clearFilter}>
                   Clear Filters
                 </Button>
                 <Button type="button" onClick={() => setIsFilterOpen(false)}>
@@ -643,12 +722,18 @@ export default function BoardPage() {
               <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
                 <DialogHeader>
                   <DialogTitle>Create New Task</DialogTitle>
-                  <p className="text-sm text-gray-600">Add a task to the board </p>
+                  <p className="text-sm text-gray-600">
+                    Add a task to the board{" "}
+                  </p>
                 </DialogHeader>
                 <form className="space-y-4" onSubmit={handleCreateTask}>
                   <div className="space-y-2">
                     <Label>Title *</Label>
-                    <Input id="title" name="title" placeholder="Enter task title" />
+                    <Input
+                      id="title"
+                      name="title"
+                      placeholder="Enter task title"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Description</Label>
@@ -661,7 +746,11 @@ export default function BoardPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Assignee</Label>
-                    <Input id="assignee" name="assignee" placeholder="Who should do this ?" />
+                    <Input
+                      id="assignee"
+                      name="assignee"
+                      placeholder="Who should do this ?"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Priority</Label>
@@ -670,9 +759,10 @@ export default function BoardPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {['low', 'medium', 'high'].map((priority, key) => (
+                        {["low", "medium", "high"].map((priority, key) => (
                           <SelectItem key={key} value={priority}>
-                            {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                            {priority.charAt(0).toUpperCase() +
+                              priority.slice(1)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -731,7 +821,9 @@ export default function BoardPage() {
                 </Button>
               </div>
 
-              <DragOverlay>{activeTask ? <TaskOverlay task={activeTask} /> : null}</DragOverlay>
+              <DragOverlay>
+                {activeTask ? <TaskOverlay task={activeTask} /> : null}
+              </DragOverlay>
             </div>
           </DndContext>
         </main>
@@ -741,7 +833,9 @@ export default function BoardPage() {
         <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
           <DialogHeader>
             <DialogTitle>Create New Column</DialogTitle>
-            <p className="text-sm text-gray-600">Add new column to organize your tasks</p>
+            <p className="text-sm text-gray-600">
+              Add new column to organize your tasks
+            </p>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleCreateColumn}>
             <div className="space-y-2">
@@ -755,7 +849,11 @@ export default function BoardPage() {
               />
             </div>
             <div className="space-x-2 flex justify-end">
-              <Button type="button" onClick={() => setIsCreatingColumn(false)} variant="outline">
+              <Button
+                type="button"
+                onClick={() => setIsCreatingColumn(false)}
+                variant="outline"
+              >
                 Cancel
               </Button>
               <Button type="submit">Create Column</Button>
@@ -768,7 +866,9 @@ export default function BoardPage() {
         <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
           <DialogHeader>
             <DialogTitle>Edit Column</DialogTitle>
-            <p className="text-sm text-gray-600">Update the tile of your Column</p>
+            <p className="text-sm text-gray-600">
+              Update the tile of your Column
+            </p>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleUpdateColumn}>
             <div className="space-y-2">
@@ -786,7 +886,7 @@ export default function BoardPage() {
                 type="button"
                 onClick={() => {
                   setIsEditingColumn(false);
-                  setEditingColumnTitle('');
+                  setEditingColumnTitle("");
                   setEditingColumn(null);
                 }}
                 variant="outline"
