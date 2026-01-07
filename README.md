@@ -1,119 +1,111 @@
 # EpiTrello
 
-> Une application Kanban simple et collaborative pour organiser vos projets, inspirée de Trello.
+> A simple and collaborative Kanban application to organize your projects, inspired by Trello.
 
-EpiTrello vous aide à **visualiser le travail**, **suivre l’avancement** et **collaborer** en équipe au quotidien. Créez des tableaux (boards), ajoutez des listes (colonnes) et déplacez des cartes (tâches) au fil de votre workflow.
-
----
-
-## ✨ Aperçu du projet 
-- **Tableaux** pour vos projets
-- **Listes** (ex. À faire → En cours → Fait)
-- **Cartes** avec titre, description, étiquettes, échéances et membres
-- **Glisser‑déposer** pour réorganiser en un clic
-- **Collaboration** : commentaires et notifications in‑app
-- **Recherche et filtres** pour retrouver rapidement une tâche
-- **Multilingue** : FR/EN
-
-> Techniquement, le projet utilise React + TypeScript, Next.js (App Router), shadcn/ui et Supabase. Pas besoin d’entrer dans les détails pour utiliser l’application.
+EpiTrello helps you **visualize work**, **track progress**, and **collaborate** with your team every day. Create boards, add lists (columns), and move cards (tasks) throughout your workflow.
 
 ---
 
-## 🖼️ Captures d’écran
+## ✨ Project Overview
 
-> Ajoutez vos visuels dans `docs/images` puis remplacez les chemins ci‑dessous.
+- **Boards** for your projects
+- **Lists** (e.g., To do → In progress → Done)
+- **Cards** with title, description, labels, due dates, and members
+- **Drag & drop** to reorganize in one click
+- **Collaboration**: comments and in-app notifications
+- **Search and filters** to quickly find a task
+- **Multilingual**: FR/EN
 
-- **Landing Page**  
-  ![Landing Page](/images/landing-page.png)
-
-- **Dashboard**  
-  ![Dashboard](/images/dashboard.png)
-
-- **Board Kanban**  
-  ![Board Kanban](/images/board-kanban.png)
-
-- **Create Task Dialog**  
-  ![Create Task Dialog](/images/create-task-dialog.png)
+> Technically, the project uses React + TypeScript, Next.js (App Router), shadcn/ui, and Supabase. No need to dive into the details to use the app.
 
 ---
 
-## 🚀 Démarrer l’application
+## 🖼️ Screenshots
 
-### Prérequis
-- **Node.js 18+** (ou supérieur)
-- Un gestionnaire de paquets (**pnpm**, **npm** ou **yarn**)
-- Un compte **Supabase** (gratuit) pour obtenir une URL de projet et une clé publique (anon)
-
-### 1) Cloner et installer
-```bash
-git clone https://github.com/votre-org/epitrello.git
-cd epitrello
-# avec pnpm (recommandé)
-pnpm install
-# ou npm
-# npm install
-```
-
-### 2) Configurer les variables d’environnement
-Créez un fichier **`.env.local`** à la racine du projet avec vos informations Supabase :
-```bash
-cp .env.example .env.local
-```
-Ouvrez `.env.local` et renseignez :
-```env
-NEXT_PUBLIC_SUPABASE_URL=Votre_URL_Supabase
-NEXT_PUBLIC_SUPABASE_ANON_KEY=Votre_CLE_PUBLIQUE_anon
-```
-
-> Où trouver ces valeurs ?  
-> Dans votre tableau de bord Supabase → **Project Settings → API**.
-
-### 3) Lancer en mode développement
-```bash
-pnpm dev
-# ou
-# npm run dev
-```
-Puis ouvrez votre navigateur sur **http://localhost:3000**.
-
-> **Astuce :** si vous ne voyez aucun tableau au premier lancement, créez‑en un via le bouton **“Nouveau board”**.
+![Landing Page](/images/landing-page.png)
+![Dashboard](/images/dashboard.png)
+![Board Kanban](/images/board-kanban.png)
+![Create Task Dialog](/images/create-task-dialog.png)
 
 ---
 
-## 🧭 Structure 
-```
-epitrello/
-├─ app/                # Pages et routes Next.js (App Router)
-├─ components/         # Composants UI (shadcn/ui + composants projet)
-├─ lib/                # Aides (ex. client Supabase)
-├─ public/             # Icônes/manifest
-├─ docs/images/        # Captures d’écran à insérer dans le README
-└─ .env.local          # Variables d’environnement (non commité)
-```
+## 🚀 Getting Started
+
+### Requirements
+
+- **Node.js 18+** (or newer)
+- A package manager (**pnpm**, **npm**, or **yarn**)
+- A **Supabase** account (free) to get a project URL and a public (anon) key
+
+### 1) Clone and install
+
+    git clone https://github.com/your-org/epitrello.git
+    cd epitrello
+    pnpm install
+    # or
+    # npm install
+
+### 2) Configure environment variables
+
+Create a **.env.local** file at the root of the project:
+
+    cp .env.example .env.local
+
+Open .env.local and fill in:
+
+    NEXT_PUBLIC_SUPABASE_URL=Your_Supabase_URL
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=Your_Public_anon_key
+
+> Where to find these values?  
+> Supabase dashboard → **Project Settings → API**.
+
+### 3) Run in development mode
+
+    pnpm dev
+    # or
+    # npm run dev
+
+Then open **http://localhost:3000** in your browser.
+
+> **Tip:** If you don’t see any boards on first launch, create one using the **“New board”** button.
 
 ---
 
-## ❓ FAQ rapide
+## 🧭 Project Structure
 
-**Q : Ai‑je besoin de connaissances techniques ?**  
-R : Non pour utiliser l’app. Il suffit de lancer le projet et de disposer d’un compte Supabase (valeurs à copier/coller).
-
-**Q : Comment ajouter des images au README ?**  
-R : Placez vos fichiers dans `docs/images`, puis mettez à jour les chemins d’images dans la section *Captures d’écran*.
-
-**Q : Puis‑je déployer en ligne ?**  
-R : Oui. Le plus simple est **Vercel** (pour Next.js) + **Supabase**. Vous pourrez réutiliser les mêmes variables d’environnement.
-
----
-
-## 🤝 Contribuer
-Les contributions sont bienvenues ! Pour des suggestions, ouvrez une *Issue* ou une *Pull Request* sur le dépôt.
+    epitrello/
+    ├─ app/                # Next.js pages and routes (App Router)
+    ├─ components/         # UI components (shadcn/ui + project components)
+    ├─ lib/                # Helpers (e.g., Supabase client)
+    ├─ public/             # Icons/manifest
+    ├─ docs/images/        # Screenshots to include in the README
+    └─ .env.local          # Environment variables (not committed)
 
 ---
 
-## 📄 Licence
-À définir selon vos besoins (ex. MIT).
+## ❓ Quick FAQ
+
+**Q: Do I need technical knowledge?**  
+A: Not to use the app. You just need to run the project and have a Supabase account (values to copy/paste).
+
+**Q: How do I add images to the README?**  
+A: Put your files in `docs/images`, then update the image paths in the *Screenshots* section.
+
+**Q: Can I deploy it online?**  
+A: Yes. The easiest way is **Vercel** (for Next.js) + **Supabase**. You can reuse the same environment variables.
 
 ---
 
-**Contact** : équipe EpiTrello – merci d’ouvrir une *Issue* pour toute question.
+## 🤝 Contributing
+
+Contributions are welcome! For suggestions, open an **Issue** or a **Pull Request** on the repository.
+
+---
+
+## 📄 License
+
+Define according to your needs (e.g., MIT).
+
+---
+
+**Contact:** EpiTrello team — please open an **Issue** for any question.
