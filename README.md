@@ -23,17 +23,17 @@ EpiTrello vous aide à **visualiser le travail**, **suivre l’avancement** et *
 
 > Ajoutez vos visuels dans `docs/images` puis remplacez les chemins ci‑dessous.
 
-- **Vue Board (Kanban)**  
-  ![Board](docs/images/board.png)
+- **Landing Page**  
+  ![Landing Page](/images/board.png)
 
-- **Carte ouverte (détails)**  
-  ![Card Modal](docs/images/card-modal.png)
+- **Dashboard**  
+  ![Dashboard](/images/dashboard.png)
 
-- **Recherche & Filtres**  
-  ![Filters](docs/images/filters.png)
+- **Board Kanban**  
+  ![Board Kanban](/images/board-kanban.png)
 
-- **Vue Calendrier**  
-  ![Calendar](docs/images/calendar.png)
+- **Create Task Dialog**  
+  ![Create Task Dialog](/images/create-task-dialog.png)
 
 ---
 
