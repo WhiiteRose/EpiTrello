@@ -24,7 +24,7 @@ EpiTrello vous aide à **visualiser le travail**, **suivre l’avancement** et *
 > Ajoutez vos visuels dans `docs/images` puis remplacez les chemins ci‑dessous.
 
 - **Landing Page**  
-  ![Landing Page](/images/board.png)
+  ![Landing Page](/images/landing-page.png)
 
 - **Dashboard**  
   ![Dashboard](/images/dashboard.png)
