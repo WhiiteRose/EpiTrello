@@ -7,7 +7,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const hasEntreprisePlan = has({ plan: 'entreprise_user' });
   return (
     <PlanProvider hasProPlan={hasProPlan} hasEntreprisePlan={hasEntreprisePlan}>
-      {children};
+      {children}
     </PlanProvider>
   );
 }
