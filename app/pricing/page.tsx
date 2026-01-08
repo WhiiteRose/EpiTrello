@@ -1,4 +1,4 @@
-import { PricingTable } from '@clerk/nextjs';
+import { PricingTable } from '@/components/pricing-table';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
