@@ -22,6 +22,7 @@ import {
   Rocket,
   Search,
   Trash,
+  AlertTriangle,
   Trello,
 } from "lucide-react";
 import Link from "next/link";
@@ -127,16 +128,95 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div>
-        <Loader2 /> <span>Loading your boards...</span>
+      <div className="min-h-screen bg-gray-50">
+        <NavBar />
+        <main className="container mx-auto px-4 py-6 sm:py-8">
+          <div className="flex items-center gap-3 text-gray-700 mb-8">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span className="text-sm sm:text-base">
+              Loading your workspace...
+            </span>
+          </div>
+          <div className="mb-6 sm:mb-8 space-y-2">
+            <div className="h-7 w-52 bg-gray-200 rounded animate-pulse" />
+            <div className="h-4 w-80 bg-gray-200 rounded animate-pulse" />
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Card key={index}>
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <div className="h-3 w-24 bg-gray-200 rounded animate-pulse" />
+                      <div className="h-6 w-16 bg-gray-200 rounded animate-pulse" />
+                    </div>
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 bg-gray-200 rounded-lg animate-pulse" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <div className="space-y-2">
+              <div className="h-6 w-32 bg-gray-200 rounded animate-pulse" />
+              <div className="h-4 w-48 bg-gray-200 rounded animate-pulse" />
+            </div>
+            <div className="h-9 w-28 bg-gray-200 rounded animate-pulse" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <Card key={index} className="hover:shadow-lg transition-shadow">
+                <CardContent className="p-4 sm:p-6 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="h-3 w-3 rounded bg-gray-200 animate-pulse" />
+                    <div className="h-5 w-10 bg-gray-200 rounded animate-pulse" />
+                  </div>
+                  <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-3 w-40 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-3 w-24 bg-gray-200 rounded animate-pulse" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </main>
       </div>
     );
   }
   if (error) {
     return (
-      <div>
-        <h2>Error loading boards</h2>
-        <p>{error}</p>
+      <div className="min-h-screen bg-gradient-to-b from-rose-50 via-white to-amber-50">
+        <NavBar />
+        <main className="container mx-auto px-4 py-10 sm:py-16">
+          <Card className="mx-auto max-w-xl border-rose-200/70 bg-white/80 shadow-lg backdrop-blur">
+            <CardContent className="p-6 sm:p-8">
+              <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                <div className="h-12 w-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6" />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+                    We could not load your boards
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    Something went wrong while fetching your workspace. Try
+                    again in a moment or check your connection.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 rounded-lg border border-rose-100 bg-rose-50/70 p-3 text-xs sm:text-sm text-rose-700 break-words">
+                {error}
+              </div>
+              <div className="mt-6 flex flex-col sm:flex-row gap-2">
+                <Button onClick={() => window.location.reload()}>
+                  Try again
+                </Button>
+                <Button variant="outline" onClick={() => router.push("/")}>
+                  Go to home
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
       </div>
     );
   }

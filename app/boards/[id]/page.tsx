@@ -40,7 +40,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, MoreHorizontal, Plus, User } from "lucide-react";
+import { AlertTriangle, Calendar, Loader2, MoreHorizontal, Plus, User } from "lucide-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
@@ -333,6 +334,8 @@ export default function BoardPage() {
     deleteTask,
     members,
     inviteMember,
+    loading,
+    error,
   } = useBoard(id);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -654,6 +657,97 @@ export default function BoardPage() {
       return true;
     }),
   }));
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <NavBar boardTitle="Loading board..." />
+        <main className="container mx-auto px-4 py-6 sm:py-8">
+          <div className="flex items-center gap-3 text-gray-700 mb-6">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span className="text-sm sm:text-base">
+              Loading your board...
+            </span>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div className="h-4 w-40 bg-gray-200 rounded animate-pulse" />
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <div className="h-9 w-full sm:w-28 bg-gray-200 rounded animate-pulse" />
+              <div className="h-9 w-full sm:w-24 bg-gray-200 rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Card key={index} className="lg:w-80">
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-5 w-6 bg-gray-200 rounded animate-pulse" />
+                  </div>
+                  <div className="space-y-3">
+                    {Array.from({ length: 4 }).map((_, taskIndex) => (
+                      <div
+                        key={taskIndex}
+                        className="rounded-md border border-gray-100 p-3"
+                      >
+                        <div className="h-3 w-28 bg-gray-200 rounded animate-pulse mb-2" />
+                        <div className="h-3 w-40 bg-gray-200 rounded animate-pulse" />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            <Card className="lg:w-80 border-2 border-dashed border-gray-200">
+              <CardContent className="p-4 sm:p-6 flex flex-col items-center justify-center min-h-[200px]">
+                <div className="h-10 w-10 bg-gray-200 rounded-full animate-pulse mb-3" />
+                <div className="h-3 w-32 bg-gray-200 rounded animate-pulse" />
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-rose-50">
+        <NavBar boardTitle="Board unavailable" />
+        <main className="container mx-auto px-4 py-10 sm:py-16 flex items-center justify-center">
+          <Card className="w-full max-w-xl border-rose-200/70 bg-white/80 shadow-lg backdrop-blur">
+            <CardContent className="p-6 sm:p-8">
+              <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                <div className="h-12 w-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6" />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+                    We couldn&apos;t load this board
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    The board might be missing or you no longer have access.
+                    Please try again or return to your dashboard.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 rounded-lg border border-rose-100 bg-rose-50/70 p-3 text-xs sm:text-sm text-rose-700 break-words">
+                {error}
+              </div>
+              <div className="mt-6 flex flex-col sm:flex-row gap-2">
+                <Button onClick={() => window.location.reload()}>
+                  Try again
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/dashboard">Back to dashboard</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <>
