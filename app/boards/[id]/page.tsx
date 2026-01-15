@@ -351,7 +351,7 @@ export default function BoardPage() {
     null
   );
   const [isInviteOpen, setIsInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteUserId, setInviteUserId] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
   const [isEditingTask, setIsEditingTask] = useState(false);
@@ -588,25 +588,24 @@ export default function BoardPage() {
     setInviteError(null);
     setInviteSuccess(null);
 
-    const normalizedEmail = inviteEmail.trim().toLowerCase();
-    if (!normalizedEmail) {
-      setInviteError("Email is required.");
+    const normalizedUserId = inviteUserId.trim();
+    if (!normalizedUserId) {
+      setInviteError("User ID is required.");
       return;
     }
 
-    const currentEmail = user?.emailAddresses[0]?.emailAddress?.toLowerCase();
-    if (currentEmail && normalizedEmail === currentEmail) {
+    if (user?.id && normalizedUserId === user.id) {
       setInviteError("You are already on this board.");
       return;
     }
 
-    const result = await inviteMember(normalizedEmail);
+    const result = await inviteMember(normalizedUserId);
     if (!result) {
       setInviteError("Failed to invite member.");
       return;
     }
     setInviteSuccess("Invite sent.");
-    setInviteEmail("");
+    setInviteUserId("");
   }
 
   async function handleUpdateTask(e: React.FormEvent<HTMLFormElement>) {
@@ -1110,20 +1109,25 @@ export default function BoardPage() {
           <DialogHeader>
             <DialogTitle>Invite Member</DialogTitle>
             <p className="text-sm text-gray-600">
-              Invite someone by email to collaborate on this board.
+              Invite someone by Clerk user ID to collaborate on this board.
             </p>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleInviteSubmit}>
             <div className="space-y-2">
-              <Label>Email</Label>
+              <Label>User ID</Label>
               <Input
-                id="inviteEmail"
-                value={inviteEmail}
-                onChange={(event) => setInviteEmail(event.target.value)}
-                placeholder="member@example.com"
-                type="email"
+                id="inviteUserId"
+                value={inviteUserId}
+                onChange={(event) => setInviteUserId(event.target.value)}
+                placeholder="user_..."
+                autoComplete="off"
                 required
               />
+              {user?.id && (
+                <p className="text-xs text-gray-500">
+                  Your user ID: <span className="font-mono">{user.id}</span>
+                </p>
+              )}
               {inviteError && (
                 <p className="text-sm text-red-600">{inviteError}</p>
               )}
@@ -1141,7 +1145,7 @@ export default function BoardPage() {
                 ) : (
                   members.map((member) => (
                     <Badge key={member.id} variant="secondary" className="text-xs">
-                      {member.user_email || member.user_id}
+                      {member.user_id}
                     </Badge>
                   ))
                 )}

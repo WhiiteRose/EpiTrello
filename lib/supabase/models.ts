@@ -36,8 +36,8 @@ export interface Task {
 export interface BoardMember {
   id: string;
   board_id: string;
-  user_id: string | null;
-  user_email: string | null;
+  user_id: string;
+  user_email?: string | null;
   role: 'owner' | 'member';
   created_at: string;
 }

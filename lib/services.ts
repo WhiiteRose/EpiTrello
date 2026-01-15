@@ -15,8 +15,7 @@ export const boardService = {
 
   async getBoardsForUser(
     supabase: SupabaseClient,
-    userId: string,
-    userEmail?: string | null
+    userId: string
   ): Promise<Board[]> {
     const { data: ownedBoards, error: ownedError } = await supabase
       .from("boards")
@@ -29,11 +28,7 @@ export const boardService = {
     const { data: memberRows, error: memberError } = await supabase
       .from("board_members")
       .select("board_id")
-      .or(
-        userEmail
-          ? `user_id.eq.${userId},user_email.eq.${userEmail}`
-          : `user_id.eq.${userId}`
-      );
+      .eq("user_id", userId);
 
     if (memberError) throw memberError;
 
@@ -242,7 +237,7 @@ export const boardMemberService = {
 
   async inviteMember(
     supabase: SupabaseClient,
-    member: Omit<BoardMember, "id" | "created_at">
+    member: Omit<BoardMember, "id" | "created_at" | "user_email">
   ): Promise<BoardMember> {
     const { data, error } = await supabase
       .from("board_members")

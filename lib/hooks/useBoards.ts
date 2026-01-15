@@ -33,11 +33,7 @@ export function useBoards() {
     try {
       setLoading(true);
       setError(null);
-      const data = await boardService.getBoardsForUser(
-        supabase,
-        user.id,
-        user.emailAddresses[0]?.emailAddress || null
-      );
+      const data = await boardService.getBoardsForUser(supabase, user.id);
       setBoards(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load board.");
@@ -414,19 +410,18 @@ export function useBoard(boardId: string) {
     }
   }
 
-  async function inviteMember(email: string) {
+  async function inviteMember(userId: string) {
     if (!board) throw new Error("Board is not loaded");
 
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail) {
-      throw new Error("Invite email is required");
+    const normalizedUserId = userId.trim();
+    if (!normalizedUserId) {
+      throw new Error("Invite user ID is required");
     }
 
     try {
       const newMember = await boardMemberService.inviteMember(supabase!, {
         board_id: board.id,
-        user_id: null,
-        user_email: normalizedEmail,
+        user_id: normalizedUserId,
         role: "member",
       });
       setMembers((prev) => [...prev, newMember]);
