@@ -29,6 +29,8 @@ export default function SupabaseProvider({
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const clerkJwtTemplate =
+    process.env.NEXT_PUBLIC_CLERK_JWT_TEMPLATE || "supabase";
 
   const configError = useMemo(() => {
     if (!supabaseUrl || !supabaseAnonKey) {
@@ -46,7 +48,11 @@ export default function SupabaseProvider({
     let cancelled = false;
 
     (async () => {
-      const token = session ? await session.getToken().catch(() => null) : null;
+      const token = session
+        ? await session
+            .getToken({ template: clerkJwtTemplate })
+            .catch(() => null)
+        : null;
       if (cancelled) return;
 
       const client = createClient(supabaseUrl!, supabaseAnonKey!, {

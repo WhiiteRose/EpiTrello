@@ -43,6 +43,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Calendar, MoreHorizontal, Plus, User } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { useUser } from "@clerk/nextjs";
 
 function DroppableColumn({
   column,
@@ -167,7 +168,13 @@ function DroppableColumn({
   );
 }
 
-function SortableTask({ task }: { task: Task }) {
+function SortableTask({
+  task,
+  onEditTask,
+}: {
+  task: Task;
+  onEditTask: (task: Task) => void;
+}) {
   const {
     attributes,
     listeners,
@@ -208,6 +215,15 @@ function SortableTask({ task }: { task: Task }) {
               <h4 className="font-medium text-gray-900 text-sm leading-tight flex-1 min-w-0 pr-2">
                 {task.title}
               </h4>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={() => onEditTask(task)}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
             </div>
             {/*Task Description */}
             <p className="text-xs text-gray-600 line-clamp-2">
@@ -303,6 +319,7 @@ function TaskOverlay({ task }: { task: Task }) {
 
 export default function BoardPage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useUser();
   const {
     board,
     createColumn,
@@ -312,6 +329,10 @@ export default function BoardPage() {
     setColumns,
     moveTask,
     updateColumn,
+    updateTask,
+    deleteTask,
+    members,
+    inviteMember,
   } = useBoard(id);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -326,6 +347,19 @@ export default function BoardPage() {
   const [editingColumn, setEditingColumn] = useState<ColumnWithTasks | null>(
     null
   );
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const [isEditingTask, setIsEditingTask] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [taskForm, setTaskForm] = useState({
+    title: "",
+    description: "",
+    assignee: "",
+    dueDate: "",
+    priority: "medium" as "low" | "medium" | "high",
+  });
 
   const [filters, setFilters] = useState({
     priority: [] as string[],
@@ -341,6 +375,18 @@ export default function BoardPage() {
       },
     })
   );
+
+  function openEditTask(task: Task) {
+    setEditingTask(task);
+    setTaskForm({
+      title: task.title,
+      description: task.description || "",
+      assignee: task.assignee || "",
+      dueDate: task.due_date || "",
+      priority: task.priority,
+    });
+    setIsEditingTask(true);
+  }
 
   function handleFilterChange(
     type: "priority" | "assignee" | "dueDate",
@@ -534,6 +580,55 @@ export default function BoardPage() {
     setEditingColumnTitle(column.title);
   }
 
+  async function handleInviteSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setInviteError(null);
+    setInviteSuccess(null);
+
+    const normalizedEmail = inviteEmail.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setInviteError("Email is required.");
+      return;
+    }
+
+    const currentEmail = user?.emailAddresses[0]?.emailAddress?.toLowerCase();
+    if (currentEmail && normalizedEmail === currentEmail) {
+      setInviteError("You are already on this board.");
+      return;
+    }
+
+    const result = await inviteMember(normalizedEmail);
+    if (!result) {
+      setInviteError("Failed to invite member.");
+      return;
+    }
+    setInviteSuccess("Invite sent.");
+    setInviteEmail("");
+  }
+
+  async function handleUpdateTask(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editingTask) return;
+
+    await updateTask(editingTask.id, {
+      title: taskForm.title.trim(),
+      description: taskForm.description.trim() || null,
+      assignee: taskForm.assignee.trim() || null,
+      dueDate: taskForm.dueDate || null,
+      priority: taskForm.priority,
+    });
+
+    setIsEditingTask(false);
+    setEditingTask(null);
+  }
+
+  async function handleDeleteTask() {
+    if (!editingTask) return;
+    await deleteTask(editingTask.id);
+    setIsEditingTask(false);
+    setEditingTask(null);
+  }
+
   const filteredColumns = columns.map((column) => ({
     ...column,
     tasks: column.tasks.filter((task) => {
@@ -710,74 +805,87 @@ export default function BoardPage() {
               </div>
             </div>
 
-            {/* Add task dialog */}
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button className="w-full sm:w-auto">
-                  <Plus />
-                  Add Task
-                </Button>
-              </DialogTrigger>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button className="w-full sm:w-auto">
+                    <Plus />
+                    Add Task
+                  </Button>
+                </DialogTrigger>
 
-              <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
-                <DialogHeader>
-                  <DialogTitle>Create New Task</DialogTitle>
-                  <p className="text-sm text-gray-600">
-                    Add a task to the board{" "}
-                  </p>
-                </DialogHeader>
-                <form className="space-y-4" onSubmit={handleCreateTask}>
-                  <div className="space-y-2">
-                    <Label>Title *</Label>
-                    <Input
-                      id="title"
-                      name="title"
-                      placeholder="Enter task title"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Description</Label>
-                    <Textarea
-                      id="description"
-                      name="description"
-                      placeholder="Enter task description"
-                      rows={3}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Assignee</Label>
-                    <Input
-                      id="assignee"
-                      name="assignee"
-                      placeholder="Who should do this ?"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Priority</Label>
-                    <Select name="priority" defaultValue="medium">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {["low", "medium", "high"].map((priority, key) => (
-                          <SelectItem key={key} value={priority}>
-                            {priority.charAt(0).toUpperCase() +
-                              priority.slice(1)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Due Date</Label>
-                    <Input type="date" id="dueDate" name="dueDate" />
-                  </div>
-                  <div className="flex justify-end space-x-2 pt-4">
-                    <Button type="submit">Create Task</Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
+                <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+                  <DialogHeader>
+                    <DialogTitle>Create New Task</DialogTitle>
+                    <p className="text-sm text-gray-600">
+                      Add a task to the board{" "}
+                    </p>
+                  </DialogHeader>
+                  <form className="space-y-4" onSubmit={handleCreateTask}>
+                    <div className="space-y-2">
+                      <Label>Title *</Label>
+                      <Input
+                        id="title"
+                        name="title"
+                        placeholder="Enter task title"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Description</Label>
+                      <Textarea
+                        id="description"
+                        name="description"
+                        placeholder="Enter task description"
+                        rows={3}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Assignee</Label>
+                      <Input
+                        id="assignee"
+                        name="assignee"
+                        placeholder="Who should do this ?"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Priority</Label>
+                      <Select name="priority" defaultValue="medium">
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["low", "medium", "high"].map((priority, key) => (
+                            <SelectItem key={key} value={priority}>
+                              {priority.charAt(0).toUpperCase() +
+                                priority.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Due Date</Label>
+                      <Input type="date" id="dueDate" name="dueDate" />
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button type="submit">Create Task</Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  setInviteError(null);
+                  setInviteSuccess(null);
+                  setIsInviteOpen(true);
+                }}
+              >
+                Invite
+              </Button>
+            </div>
           </div>
 
           {/* Board Columns */}
@@ -803,7 +911,11 @@ export default function BoardPage() {
                   >
                     <div className="space-y-3 ">
                       {column.tasks.map((task, key) => (
-                        <SortableTask task={task} key={key} />
+                        <SortableTask
+                          task={task}
+                          key={key}
+                          onEditTask={openEditTask}
+                        />
                       ))}
                     </div>
                   </SortableContext>
@@ -894,6 +1006,162 @@ export default function BoardPage() {
                 Cancel
               </Button>
               <Button type="submit">Edit Column</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+        <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+          <DialogHeader>
+            <DialogTitle>Invite Member</DialogTitle>
+            <p className="text-sm text-gray-600">
+              Invite someone by email to collaborate on this board.
+            </p>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleInviteSubmit}>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                id="inviteEmail"
+                value={inviteEmail}
+                onChange={(event) => setInviteEmail(event.target.value)}
+                placeholder="member@example.com"
+                type="email"
+                required
+              />
+              {inviteError && (
+                <p className="text-sm text-red-600">{inviteError}</p>
+              )}
+              {inviteSuccess && (
+                <p className="text-sm text-green-600">{inviteSuccess}</p>
+              )}
+            </div>
+            <div>
+              <Label className="text-xs">Current Members</Label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {members.length === 0 ? (
+                  <Badge variant="secondary" className="text-xs">
+                    No members yet
+                  </Badge>
+                ) : (
+                  members.map((member) => (
+                    <Badge key={member.id} variant="secondary" className="text-xs">
+                      {member.user_email || member.user_id}
+                    </Badge>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsInviteOpen(false)}
+              >
+                Close
+              </Button>
+              <Button type="submit">Send Invite</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditingTask} onOpenChange={setIsEditingTask}>
+        <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleUpdateTask}>
+            <div className="space-y-2">
+              <Label>Title *</Label>
+              <Input
+                value={taskForm.title}
+                onChange={(event) =>
+                  setTaskForm((prev) => ({ ...prev, title: event.target.value }))
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                value={taskForm.description}
+                onChange={(event) =>
+                  setTaskForm((prev) => ({
+                    ...prev,
+                    description: event.target.value,
+                  }))
+                }
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Assignee</Label>
+              <Input
+                value={taskForm.assignee}
+                onChange={(event) =>
+                  setTaskForm((prev) => ({
+                    ...prev,
+                    assignee: event.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Priority</Label>
+              <Select
+                value={taskForm.priority}
+                onValueChange={(value) =>
+                  setTaskForm((prev) => ({
+                    ...prev,
+                    priority: value as "low" | "medium" | "high",
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {["low", "medium", "high"].map((priority, key) => (
+                    <SelectItem key={key} value={priority}>
+                      {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Due Date</Label>
+              <Input
+                type="date"
+                value={taskForm.dueDate}
+                onChange={(event) =>
+                  setTaskForm((prev) => ({
+                    ...prev,
+                    dueDate: event.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="flex justify-between pt-4">
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDeleteTask}
+              >
+                Delete
+              </Button>
+              <div className="flex space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditingTask(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit">Save</Button>
+              </div>
             </div>
           </form>
         </DialogContent>

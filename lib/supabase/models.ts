@@ -32,3 +32,12 @@ export interface Task {
   sort_order: number;
   created_at: string;
 }
+
+export interface BoardMember {
+  id: string;
+  board_id: string;
+  user_id: string | null;
+  user_email: string | null;
+  role: 'owner' | 'member';
+  created_at: string;
+}
