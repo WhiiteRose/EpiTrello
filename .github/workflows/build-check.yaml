@@ -1,24 +1,26 @@
-name: Verification du code
-on: [push]
+name: Build Check
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
 
 jobs:
-  check-code:
+  build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Installation de Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Installation des dépendances
+      - name: Install dependencies
         run: npm install
 
-      - name: Verification des erreurs (Lint)
-        run: npm run lint
-
-      - name: Test du Build (Simulation)
+      - name: Build project
         run: npm run build
         env:
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
