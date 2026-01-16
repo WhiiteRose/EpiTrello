@@ -40,9 +40,20 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, MoreHorizontal, Plus, User } from "lucide-react";
+import {
+  AlertTriangle,
+  Calendar,
+  Copy,
+  Loader2,
+  MoreHorizontal,
+  Plus,
+  Trash,
+  User,
+} from "lucide-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { useUser } from "@clerk/nextjs";
 
 function DroppableColumn({
   column,
@@ -167,7 +178,13 @@ function DroppableColumn({
   );
 }
 
-function SortableTask({ task }: { task: Task }) {
+function SortableTask({
+  task,
+  onEditTask,
+}: {
+  task: Task;
+  onEditTask: (task: Task) => void;
+}) {
   const {
     attributes,
     listeners,
@@ -208,6 +225,15 @@ function SortableTask({ task }: { task: Task }) {
               <h4 className="font-medium text-gray-900 text-sm leading-tight flex-1 min-w-0 pr-2">
                 {task.title}
               </h4>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={() => onEditTask(task)}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
             </div>
             {/*Task Description */}
             <p className="text-xs text-gray-600 line-clamp-2">
@@ -303,6 +329,7 @@ function TaskOverlay({ task }: { task: Task }) {
 
 export default function BoardPage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useUser();
   const {
     board,
     createColumn,
@@ -312,6 +339,13 @@ export default function BoardPage() {
     setColumns,
     moveTask,
     updateColumn,
+    updateTask,
+    deleteTask,
+    members,
+    inviteMember,
+    removeMember,
+    loading,
+    error,
   } = useBoard(id);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -326,6 +360,20 @@ export default function BoardPage() {
   const [editingColumn, setEditingColumn] = useState<ColumnWithTasks | null>(
     null
   );
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [inviteUserId, setInviteUserId] = useState("");
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const [isEditingTask, setIsEditingTask] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [taskForm, setTaskForm] = useState({
+    title: "",
+    description: "",
+    assignee: "",
+    dueDate: "",
+    priority: "medium" as "low" | "medium" | "high",
+  });
+  const memberLimit = 4;
 
   const [filters, setFilters] = useState({
     priority: [] as string[],
@@ -341,6 +389,23 @@ export default function BoardPage() {
       },
     })
   );
+  const isOwner = !!board?.user_id && board.user_id === user?.id;
+  const ownerCount = board?.user_id ? 1 : 0;
+  const totalMembers = ownerCount + members.length;
+  const isAtMemberLimit = totalMembers >= memberLimit;
+  const truncatedUserId = user?.id ? `${user.id.slice(0, 12)}...` : "";
+
+  function openEditTask(task: Task) {
+    setEditingTask(task);
+    setTaskForm({
+      title: task.title,
+      description: task.description || "",
+      assignee: task.assignee || "",
+      dueDate: task.due_date || "",
+      priority: task.priority,
+    });
+    setIsEditingTask(true);
+  }
 
   function handleFilterChange(
     type: "priority" | "assignee" | "dueDate",
@@ -534,6 +599,64 @@ export default function BoardPage() {
     setEditingColumnTitle(column.title);
   }
 
+  async function handleInviteSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setInviteError(null);
+    setInviteSuccess(null);
+
+    if (isAtMemberLimit) {
+      setInviteError(`Member limit reached (${memberLimit}).`);
+      return;
+    }
+
+    const normalizedUserId = inviteUserId.trim();
+    if (!normalizedUserId) {
+      setInviteError("User ID is required.");
+      return;
+    }
+
+    if (user?.id && normalizedUserId === user.id) {
+      setInviteError("You are already on this board.");
+      return;
+    }
+
+    const result = await inviteMember(normalizedUserId);
+    if (!result) {
+      setInviteError("Failed to invite member.");
+      return;
+    }
+    setInviteSuccess("Invite sent.");
+    setInviteUserId("");
+  }
+
+  async function handleRemoveMember(memberId: string) {
+    if (!isOwner) return;
+    await removeMember(memberId);
+  }
+
+  async function handleUpdateTask(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editingTask) return;
+
+    await updateTask(editingTask.id, {
+      title: taskForm.title.trim(),
+      description: taskForm.description.trim() || null,
+      assignee: taskForm.assignee.trim() || null,
+      dueDate: taskForm.dueDate || null,
+      priority: taskForm.priority,
+    });
+
+    setIsEditingTask(false);
+    setEditingTask(null);
+  }
+
+  async function handleDeleteTask() {
+    if (!editingTask) return;
+    await deleteTask(editingTask.id);
+    setIsEditingTask(false);
+    setEditingTask(null);
+  }
+
   const filteredColumns = columns.map((column) => ({
     ...column,
     tasks: column.tasks.filter((task) => {
@@ -559,6 +682,97 @@ export default function BoardPage() {
       return true;
     }),
   }));
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <NavBar boardTitle="Loading board..." />
+        <main className="container mx-auto px-4 py-6 sm:py-8">
+          <div className="flex items-center gap-3 text-gray-700 mb-6">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span className="text-sm sm:text-base">
+              Loading your board...
+            </span>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div className="h-4 w-40 bg-gray-200 rounded animate-pulse" />
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <div className="h-9 w-full sm:w-28 bg-gray-200 rounded animate-pulse" />
+              <div className="h-9 w-full sm:w-24 bg-gray-200 rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Card key={index} className="lg:w-80">
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-5 w-6 bg-gray-200 rounded animate-pulse" />
+                  </div>
+                  <div className="space-y-3">
+                    {Array.from({ length: 4 }).map((_, taskIndex) => (
+                      <div
+                        key={taskIndex}
+                        className="rounded-md border border-gray-100 p-3"
+                      >
+                        <div className="h-3 w-28 bg-gray-200 rounded animate-pulse mb-2" />
+                        <div className="h-3 w-40 bg-gray-200 rounded animate-pulse" />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            <Card className="lg:w-80 border-2 border-dashed border-gray-200">
+              <CardContent className="p-4 sm:p-6 flex flex-col items-center justify-center min-h-[200px]">
+                <div className="h-10 w-10 bg-gray-200 rounded-full animate-pulse mb-3" />
+                <div className="h-3 w-32 bg-gray-200 rounded animate-pulse" />
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-rose-50">
+        <NavBar boardTitle="Board unavailable" />
+        <main className="container mx-auto px-4 py-10 sm:py-16 flex items-center justify-center">
+          <Card className="w-full max-w-xl border-rose-200/70 bg-white/80 shadow-lg backdrop-blur">
+            <CardContent className="p-6 sm:p-8">
+              <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                <div className="h-12 w-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6" />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+                    We couldn&apos;t load this board
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    The board might be missing or you no longer have access.
+                    Please try again or return to your dashboard.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 rounded-lg border border-rose-100 bg-rose-50/70 p-3 text-xs sm:text-sm text-rose-700 break-words">
+                {error}
+              </div>
+              <div className="mt-6 flex flex-col sm:flex-row gap-2">
+                <Button onClick={() => window.location.reload()}>
+                  Try again
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/dashboard">Back to dashboard</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -708,76 +922,113 @@ export default function BoardPage() {
                 <span className="font-medium">Total Tasks: </span>
                 {columns.reduce((sum, col) => sum + col.tasks.length, 0)}
               </div>
+              <div className="flex h-8 items-center gap-2 rounded-full border border-gray-200 bg-white px-3 text-xs text-gray-700">
+                <User className="h-3 w-3 text-gray-500" />
+                <span className="font-medium">Members</span>
+                <span className="font-semibold">
+                  {totalMembers}/{memberLimit}
+                </span>
+              </div>
+              {user?.id && (
+                <div className="flex h-8 items-center gap-2 rounded-full border border-gray-200 bg-white px-3 text-xs text-gray-700">
+                  <span className="font-medium shrink-0">Your ID</span>
+                  <span className="font-mono flex-1 min-w-0 truncate">
+                    {truncatedUserId}
+                  </span>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6 shrink-0"
+                    onClick={() => navigator.clipboard.writeText(user.id)}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
             </div>
 
-            {/* Add task dialog */}
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button className="w-full sm:w-auto">
-                  <Plus />
-                  Add Task
-                </Button>
-              </DialogTrigger>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button className="w-full sm:w-auto">
+                    <Plus />
+                    Add Task
+                  </Button>
+                </DialogTrigger>
 
-              <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
-                <DialogHeader>
-                  <DialogTitle>Create New Task</DialogTitle>
-                  <p className="text-sm text-gray-600">
-                    Add a task to the board{" "}
-                  </p>
-                </DialogHeader>
-                <form className="space-y-4" onSubmit={handleCreateTask}>
-                  <div className="space-y-2">
-                    <Label>Title *</Label>
-                    <Input
-                      id="title"
-                      name="title"
-                      placeholder="Enter task title"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Description</Label>
-                    <Textarea
-                      id="description"
-                      name="description"
-                      placeholder="Enter task description"
-                      rows={3}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Assignee</Label>
-                    <Input
-                      id="assignee"
-                      name="assignee"
-                      placeholder="Who should do this ?"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Priority</Label>
-                    <Select name="priority" defaultValue="medium">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {["low", "medium", "high"].map((priority, key) => (
-                          <SelectItem key={key} value={priority}>
-                            {priority.charAt(0).toUpperCase() +
-                              priority.slice(1)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Due Date</Label>
-                    <Input type="date" id="dueDate" name="dueDate" />
-                  </div>
-                  <div className="flex justify-end space-x-2 pt-4">
-                    <Button type="submit">Create Task</Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
+                <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+                  <DialogHeader>
+                    <DialogTitle>Create New Task</DialogTitle>
+                    <p className="text-sm text-gray-600">
+                      Add a task to the board{" "}
+                    </p>
+                  </DialogHeader>
+                  <form className="space-y-4" onSubmit={handleCreateTask}>
+                    <div className="space-y-2">
+                      <Label>Title *</Label>
+                      <Input
+                        id="title"
+                        name="title"
+                        placeholder="Enter task title"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Description</Label>
+                      <Textarea
+                        id="description"
+                        name="description"
+                        placeholder="Enter task description"
+                        rows={3}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Assignee</Label>
+                      <Input
+                        id="assignee"
+                        name="assignee"
+                        placeholder="Who should do this ?"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Priority</Label>
+                      <Select name="priority" defaultValue="medium">
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["low", "medium", "high"].map((priority, key) => (
+                            <SelectItem key={key} value={priority}>
+                              {priority.charAt(0).toUpperCase() +
+                                priority.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Due Date</Label>
+                      <Input type="date" id="dueDate" name="dueDate" />
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button type="submit">Create Task</Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  setInviteError(null);
+                  setInviteSuccess(null);
+                  setIsInviteOpen(true);
+                }}
+              >
+                Invite
+              </Button>
+            </div>
           </div>
 
           {/* Board Columns */}
@@ -803,7 +1054,11 @@ export default function BoardPage() {
                   >
                     <div className="space-y-3 ">
                       {column.tasks.map((task, key) => (
-                        <SortableTask task={task} key={key} />
+                        <SortableTask
+                          task={task}
+                          key={key}
+                          onEditTask={openEditTask}
+                        />
                       ))}
                     </div>
                   </SortableContext>
@@ -894,6 +1149,205 @@ export default function BoardPage() {
                 Cancel
               </Button>
               <Button type="submit">Edit Column</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+        <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+          <DialogHeader>
+            <DialogTitle>Invite Member</DialogTitle>
+            <p className="text-sm text-gray-600">
+              Invite someone by Clerk user ID to collaborate on this board.
+            </p>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleInviteSubmit}>
+            <div className="space-y-2">
+              <Label>User ID</Label>
+              <Input
+                id="inviteUserId"
+                value={inviteUserId}
+                onChange={(event) => setInviteUserId(event.target.value)}
+                placeholder="user_..."
+                autoComplete="off"
+                required
+              />
+              {user?.id && (
+                <p className="text-xs text-gray-500">
+                  Your user ID: <span className="font-mono">{user.id}</span>
+                </p>
+              )}
+              {isAtMemberLimit && (
+                <p className="text-sm text-amber-600">
+                  Member limit reached. Remove someone to invite more.
+                </p>
+              )}
+              {inviteError && (
+                <p className="text-sm text-red-600">{inviteError}</p>
+              )}
+              {inviteSuccess && (
+                <p className="text-sm text-green-600">{inviteSuccess}</p>
+              )}
+            </div>
+            <div>
+              <Label className="text-xs">
+                Current Members{" "}
+                <span className="font-semibold text-gray-600">
+                  {totalMembers}/{memberLimit}
+                </span>
+              </Label>
+              <div className="mt-2 space-y-2">
+                <div className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-xs sm:text-sm">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Badge variant="secondary" className="text-[10px]">
+                      Owner
+                    </Badge>
+                    <span className="font-mono truncate">
+                      {board?.user_id || "Unknown"}
+                    </span>
+                  </div>
+                </div>
+                {members.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-gray-200 px-3 py-2 text-xs text-gray-500">
+                    No additional members yet.
+                  </div>
+                ) : (
+                  members.map((member) => (
+                    <div
+                      key={member.id}
+                      className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-xs sm:text-sm"
+                    >
+                      <span className="font-mono truncate">
+                        {member.user_id}
+                      </span>
+                      {isOwner && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-gray-500 hover:text-red-600"
+                          onClick={() => handleRemoveMember(member.id)}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsInviteOpen(false)}
+              >
+                Close
+              </Button>
+              <Button type="submit" disabled={isAtMemberLimit}>
+                Send Invite
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditingTask} onOpenChange={setIsEditingTask}>
+        <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleUpdateTask}>
+            <div className="space-y-2">
+              <Label>Title *</Label>
+              <Input
+                value={taskForm.title}
+                onChange={(event) =>
+                  setTaskForm((prev) => ({ ...prev, title: event.target.value }))
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                value={taskForm.description}
+                onChange={(event) =>
+                  setTaskForm((prev) => ({
+                    ...prev,
+                    description: event.target.value,
+                  }))
+                }
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Assignee</Label>
+              <Input
+                value={taskForm.assignee}
+                onChange={(event) =>
+                  setTaskForm((prev) => ({
+                    ...prev,
+                    assignee: event.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Priority</Label>
+              <Select
+                value={taskForm.priority}
+                onValueChange={(value) =>
+                  setTaskForm((prev) => ({
+                    ...prev,
+                    priority: value as "low" | "medium" | "high",
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {["low", "medium", "high"].map((priority, key) => (
+                    <SelectItem key={key} value={priority}>
+                      {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Due Date</Label>
+              <Input
+                type="date"
+                value={taskForm.dueDate}
+                onChange={(event) =>
+                  setTaskForm((prev) => ({
+                    ...prev,
+                    dueDate: event.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="flex justify-between pt-4">
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDeleteTask}
+              >
+                Delete
+              </Button>
+              <div className="flex space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditingTask(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit">Save</Button>
+              </div>
             </div>
           </form>
         </DialogContent>

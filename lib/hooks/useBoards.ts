@@ -3,11 +3,17 @@ import { useUser } from "@clerk/nextjs";
 import { useEffect, useState, useCallback } from "react";
 import {
   boardDataService,
+  boardMemberService,
   boardService,
   columnService,
   taskService,
 } from "../services";
-import { Board, ColumnWithTasks, Task } from "../supabase/models";
+import {
+  Board,
+  BoardMember,
+  ColumnWithTasks,
+  Task,
+} from "../supabase/models";
 import { useSupabase } from "../supabase/SupabaseProvider";
 
 export type BoardWithTaskCount = Board & { taskCount: number };
@@ -27,7 +33,7 @@ export function useBoards() {
     try {
       setLoading(true);
       setError(null);
-      const data = await boardService.getBoards(supabase, user.id);
+      const data = await boardService.getBoardsForUser(supabase, user.id);
       setBoards(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load board.");
@@ -130,6 +136,7 @@ export function useBoard(boardId: string) {
   const { user } = useUser();
   const [board, setBoard] = useState<Board | null>(null);
   const [columns, setColumns] = useState<ColumnWithTasks[]>([]);
+  const [members, setMembers] = useState<BoardMember[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>();
 
@@ -151,9 +158,81 @@ export function useBoard(boardId: string) {
     }
   }, [boardId, supabase]);
 
+  const loadMembers = useCallback(async () => {
+    if (!boardId || !supabase) return;
+    try {
+      const data = await boardMemberService.getMembers(supabase, boardId);
+      setMembers(data);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to load board members."
+      );
+    }
+  }, [boardId, supabase]);
+
   useEffect(() => {
     loadBoard();
   }, [loadBoard]);
+
+  useEffect(() => {
+    loadMembers();
+  }, [loadMembers]);
+
+  useEffect(() => {
+    if (!supabase || !boardId) return;
+
+    const channel = supabase
+      .channel(`board-realtime-${boardId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "boards", filter: `id=eq.${boardId}` },
+        () => {
+          loadBoard();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "columns",
+          filter: `board_id=eq.${boardId}`,
+        },
+        () => {
+          loadBoard();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tasks" },
+        (payload) => {
+          const columnId =
+            (payload as { new?: { column_id?: string } }).new?.column_id ||
+            (payload as { old?: { column_id?: string } }).old?.column_id;
+          if (!columnId) return;
+          if (columns.some((column) => column.id === columnId)) {
+            loadBoard();
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "board_members",
+          filter: `board_id=eq.${boardId}`,
+        },
+        () => {
+          loadMembers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, boardId, columns, loadBoard, loadMembers]);
 
   async function updateBoard(boardId: string, updates: Partial<Board>) {
     try {
@@ -243,6 +322,58 @@ export function useBoard(boardId: string) {
     }
   }
 
+  async function updateTask(
+    taskId: string,
+    updates: {
+      title?: string;
+      description?: string | null;
+      assignee?: string | null;
+      dueDate?: string | null;
+      priority?: "low" | "medium" | "high";
+    }
+  ) {
+    try {
+      const updatedTask = await taskService.updateTask(supabase!, taskId, {
+        title: updates.title,
+        description: updates.description ?? null,
+        assignee: updates.assignee ?? null,
+        due_date: updates.dueDate ?? null,
+        priority: updates.priority,
+      });
+
+      setColumns((prev) =>
+        prev.map((col) =>
+          col.id === updatedTask.column_id
+            ? {
+                ...col,
+                tasks: col.tasks.map((task) =>
+                  task.id === taskId ? { ...task, ...updatedTask } : task
+                ),
+              }
+            : col
+        )
+      );
+
+      return updatedTask;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update task.");
+    }
+  }
+
+  async function deleteTask(taskId: string) {
+    try {
+      await taskService.deleteTask(supabase!, taskId);
+      setColumns((prev) =>
+        prev.map((col) => ({
+          ...col,
+          tasks: col.tasks.filter((task) => task.id !== taskId),
+        }))
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete task.");
+    }
+  }
+
   async function createColumn(title: string) {
     if (!board || !user) throw new Error("Board is not loaded");
 
@@ -279,16 +410,56 @@ export function useBoard(boardId: string) {
     }
   }
 
+  async function inviteMember(userId: string) {
+    if (!board) throw new Error("Board is not loaded");
+
+    const normalizedUserId = userId.trim();
+    if (!normalizedUserId) {
+      throw new Error("Invite user ID is required");
+    }
+
+    try {
+      const newMember = await boardMemberService.inviteMember(supabase!, {
+        board_id: board.id,
+        user_id: normalizedUserId,
+        role: "member",
+      });
+      setMembers((prev) => [...prev, newMember]);
+      return newMember;
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to invite member."
+      );
+    }
+  }
+
+  async function removeMember(memberId: string) {
+    try {
+      await boardMemberService.removeMember(supabase!, memberId);
+      setMembers((prev) => prev.filter((member) => member.id !== memberId));
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to remove member."
+      );
+    }
+  }
+
   return {
     board,
     columns,
+    members,
     loading,
     error,
     updateBoard,
     createRealTask,
     setColumns,
     moveTask,
+    updateTask,
+    deleteTask,
     createColumn,
     updateColumn,
+    inviteMember,
+    removeMember,
+    loadMembers,
   };
 }
