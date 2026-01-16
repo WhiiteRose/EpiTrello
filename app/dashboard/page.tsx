@@ -72,7 +72,29 @@ export default function DashboardPage() {
     },
   });
 
-  const filteredBoards = boardsWithTaskCount.filter((board) => {
+  const ownedBoardCount = boards.filter(
+    (board) => board.user_id === user?.id
+  ).length;
+  const invitedBoardCount = boards.filter(
+    (board) => board.user_id !== user?.id
+  ).length;
+  const invitedBoardLimit = isFreeUser ? 1 : Number.POSITIVE_INFINITY;
+  let invitedVisibleCount = 0;
+  const visibleBoardsWithTaskCount = boardsWithTaskCount.filter((board) => {
+    if (board.user_id === user?.id) return true;
+    if (!isFreeUser) return true;
+    if (invitedVisibleCount < invitedBoardLimit) {
+      invitedVisibleCount += 1;
+      return true;
+    }
+    return false;
+  });
+  const visibleBoardCount = visibleBoardsWithTaskCount.length;
+  const visibleInvitedCount = isFreeUser
+    ? Math.min(invitedBoardCount, invitedBoardLimit)
+    : invitedBoardCount;
+
+  const filteredBoards = visibleBoardsWithTaskCount.filter((board) => {
     const matchesSearch = board.title
       .toLowerCase()
       .includes(filters.search.toLowerCase());
@@ -106,7 +128,7 @@ export default function DashboardPage() {
     });
   }
 
-  const canCreateBoard = !isFreeUser || boards.length < 1;
+  const canCreateBoard = !isFreeUser || ownedBoardCount < 1;
 
   const handleCreateBoard = async () => {
     if (!canCreateBoard) {
@@ -244,7 +266,7 @@ export default function DashboardPage() {
                     Total Boards
                   </p>
                   <p className="text-xl sm:text-2xl font-bold text-gray-900">
-                    {boards.length}
+                    {visibleBoardCount}
                   </p>
                 </div>
                 <div className="h-10 w-10 sm:h-12 sm:w-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -262,7 +284,7 @@ export default function DashboardPage() {
                   </p>
                   <p className="text-xl sm:text-2xl font-bold text-gray-900">
                     {
-                      boards.filter((board) => {
+                      visibleBoardsWithTaskCount.filter((board) => {
                         const updateAt = new Date(board.updated_at);
                         const oneWeekAgo = new Date();
                         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -285,7 +307,7 @@ export default function DashboardPage() {
                     Active Project
                   </p>
                   <p className="text-xl sm:text-2xl font-bold text-gray-900">
-                    {boards.length}
+                    {visibleBoardCount}
                   </p>
                 </div>
                 <div className="h-10 w-10 sm:h-12 sm:w-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -302,7 +324,7 @@ export default function DashboardPage() {
                     Total Boards
                   </p>
                   <p className="text-xl sm:text-2xl font-bold text-gray-900">
-                    {boards.length}
+                    {visibleBoardCount}
                   </p>
                 </div>
                 <div className="h-10 w-10 sm:h-12 sm:w-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -321,7 +343,8 @@ export default function DashboardPage() {
               <p className="text-gray-600">Manage your projects and tasks</p>
               {isFreeUser && (
                 <p className="text-sm text-gray-500 mt-1">
-                  Free plan: {boards.length}/1 boards used
+                  Free plan: {ownedBoardCount}/1 boards created,{" "}
+                  {visibleInvitedCount}/1 invited boards
                 </p>
               )}
             </div>
@@ -370,7 +393,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Boards Grid/List */}
-          {boards.length === 0 ? (
+          {visibleBoardCount === 0 ? (
             <div>No Boards yet</div>
           ) : viewMode === "grid" ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
@@ -419,7 +442,18 @@ export default function DashboardPage() {
                   </Card>
                 </Link>
               ))}
-              <Card className="border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer group">
+              <Card
+                role="button"
+                tabIndex={0}
+                className="border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer group"
+                onClick={handleCreateBoard}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    handleCreateBoard();
+                  }
+                }}
+              >
                 <CardContent className="p-4 sm:p-6 flex flex-col items-center justify-center h-full min-h-[200px]">
                   <Plus className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 group-hover:text-blue-600 mb-2" />
                   <p className="text-sm sm:text-base text-gray-600 group-hover:text-blue-600 font-medium">
@@ -477,7 +511,18 @@ export default function DashboardPage() {
                   </Link>
                 </div>
               ))}
-              <Card className="mt-4 border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer group">
+              <Card
+                role="button"
+                tabIndex={0}
+                className="mt-4 border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer group"
+                onClick={handleCreateBoard}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    handleCreateBoard();
+                  }
+                }}
+              >
                 <CardContent className="p-4 sm:p-6 flex flex-col items-center justify-center h-full min-h-[200px]">
                   <Plus className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 group-hover:text-blue-600 mb-2" />
                   <p className="text-sm sm:text-base text-gray-600 group-hover:text-blue-600 font-medium">
