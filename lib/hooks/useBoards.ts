@@ -433,6 +433,17 @@ export function useBoard(boardId: string) {
     }
   }
 
+  async function removeMember(memberId: string) {
+    try {
+      await boardMemberService.removeMember(supabase!, memberId);
+      setMembers((prev) => prev.filter((member) => member.id !== memberId));
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to remove member."
+      );
+    }
+  }
+
   return {
     board,
     columns,
@@ -448,6 +459,7 @@ export function useBoard(boardId: string) {
     createColumn,
     updateColumn,
     inviteMember,
+    removeMember,
     loadMembers,
   };
 }

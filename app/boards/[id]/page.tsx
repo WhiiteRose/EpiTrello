@@ -40,7 +40,16 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlertTriangle, Calendar, Loader2, MoreHorizontal, Plus, User } from "lucide-react";
+import {
+  AlertTriangle,
+  Calendar,
+  Copy,
+  Loader2,
+  MoreHorizontal,
+  Plus,
+  Trash,
+  User,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -334,6 +343,7 @@ export default function BoardPage() {
     deleteTask,
     members,
     inviteMember,
+    removeMember,
     loading,
     error,
   } = useBoard(id);
@@ -363,6 +373,7 @@ export default function BoardPage() {
     dueDate: "",
     priority: "medium" as "low" | "medium" | "high",
   });
+  const memberLimit = 4;
 
   const [filters, setFilters] = useState({
     priority: [] as string[],
@@ -378,6 +389,11 @@ export default function BoardPage() {
       },
     })
   );
+  const isOwner = !!board?.user_id && board.user_id === user?.id;
+  const ownerCount = board?.user_id ? 1 : 0;
+  const totalMembers = ownerCount + members.length;
+  const isAtMemberLimit = totalMembers >= memberLimit;
+  const truncatedUserId = user?.id ? `${user.id.slice(0, 12)}...` : "";
 
   function openEditTask(task: Task) {
     setEditingTask(task);
@@ -588,6 +604,11 @@ export default function BoardPage() {
     setInviteError(null);
     setInviteSuccess(null);
 
+    if (isAtMemberLimit) {
+      setInviteError(`Member limit reached (${memberLimit}).`);
+      return;
+    }
+
     const normalizedUserId = inviteUserId.trim();
     if (!normalizedUserId) {
       setInviteError("User ID is required.");
@@ -606,6 +627,11 @@ export default function BoardPage() {
     }
     setInviteSuccess("Invite sent.");
     setInviteUserId("");
+  }
+
+  async function handleRemoveMember(memberId: string) {
+    if (!isOwner) return;
+    await removeMember(memberId);
   }
 
   async function handleUpdateTask(e: React.FormEvent<HTMLFormElement>) {
@@ -896,6 +922,30 @@ export default function BoardPage() {
                 <span className="font-medium">Total Tasks: </span>
                 {columns.reduce((sum, col) => sum + col.tasks.length, 0)}
               </div>
+              <div className="flex h-8 items-center gap-2 rounded-full border border-gray-200 bg-white px-3 text-xs text-gray-700">
+                <User className="h-3 w-3 text-gray-500" />
+                <span className="font-medium">Members</span>
+                <span className="font-semibold">
+                  {totalMembers}/{memberLimit}
+                </span>
+              </div>
+              {user?.id && (
+                <div className="flex h-8 items-center gap-2 rounded-full border border-gray-200 bg-white px-3 text-xs text-gray-700">
+                  <span className="font-medium shrink-0">Your ID</span>
+                  <span className="font-mono flex-1 min-w-0 truncate">
+                    {truncatedUserId}
+                  </span>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6 shrink-0"
+                    onClick={() => navigator.clipboard.writeText(user.id)}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -1128,6 +1178,11 @@ export default function BoardPage() {
                   Your user ID: <span className="font-mono">{user.id}</span>
                 </p>
               )}
+              {isAtMemberLimit && (
+                <p className="text-sm text-amber-600">
+                  Member limit reached. Remove someone to invite more.
+                </p>
+              )}
               {inviteError && (
                 <p className="text-sm text-red-600">{inviteError}</p>
               )}
@@ -1136,17 +1191,48 @@ export default function BoardPage() {
               )}
             </div>
             <div>
-              <Label className="text-xs">Current Members</Label>
-              <div className="mt-2 flex flex-wrap gap-2">
+              <Label className="text-xs">
+                Current Members{" "}
+                <span className="font-semibold text-gray-600">
+                  {totalMembers}/{memberLimit}
+                </span>
+              </Label>
+              <div className="mt-2 space-y-2">
+                <div className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-xs sm:text-sm">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Badge variant="secondary" className="text-[10px]">
+                      Owner
+                    </Badge>
+                    <span className="font-mono truncate">
+                      {board?.user_id || "Unknown"}
+                    </span>
+                  </div>
+                </div>
                 {members.length === 0 ? (
-                  <Badge variant="secondary" className="text-xs">
-                    No members yet
-                  </Badge>
+                  <div className="rounded-md border border-dashed border-gray-200 px-3 py-2 text-xs text-gray-500">
+                    No additional members yet.
+                  </div>
                 ) : (
                   members.map((member) => (
-                    <Badge key={member.id} variant="secondary" className="text-xs">
-                      {member.user_id}
-                    </Badge>
+                    <div
+                      key={member.id}
+                      className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-xs sm:text-sm"
+                    >
+                      <span className="font-mono truncate">
+                        {member.user_id}
+                      </span>
+                      {isOwner && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-gray-500 hover:text-red-600"
+                          onClick={() => handleRemoveMember(member.id)}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   ))
                 )}
               </div>
@@ -1159,7 +1245,9 @@ export default function BoardPage() {
               >
                 Close
               </Button>
-              <Button type="submit">Send Invite</Button>
+              <Button type="submit" disabled={isAtMemberLimit}>
+                Send Invite
+              </Button>
             </div>
           </form>
         </DialogContent>
