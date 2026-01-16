@@ -1,5 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { Board, Column, Task } from "./supabase/models";
+import { Board, BoardMember, Column, Task } from "./supabase/models";
 
 export const boardService = {
   async getBoard(supabase: SupabaseClient, boardId: string): Promise<Board> {
@@ -13,16 +13,47 @@ export const boardService = {
     return data;
   },
 
-  async getBoards(supabase: SupabaseClient, userId: string): Promise<Board[]> {
-    const { data, error } = await supabase
+  async getBoardsForUser(
+    supabase: SupabaseClient,
+    userId: string
+  ): Promise<Board[]> {
+    const { data: ownedBoards, error: ownedError } = await supabase
       .from("boards")
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (ownedError) throw ownedError;
 
-    return data || [];
+    const { data: memberRows, error: memberError } = await supabase
+      .from("board_members")
+      .select("board_id")
+      .eq("user_id", userId);
+
+    if (memberError) throw memberError;
+
+    const memberBoardIds =
+      memberRows?.map((row) => row.board_id).filter(Boolean) ?? [];
+
+    if (memberBoardIds.length === 0) {
+      return ownedBoards || [];
+    }
+
+    const { data: sharedBoards, error: sharedError } = await supabase
+      .from("boards")
+      .select("*")
+      .in("id", memberBoardIds)
+      .order("created_at", { ascending: false });
+
+    if (sharedError) throw sharedError;
+
+    const merged = [...(ownedBoards || []), ...(sharedBoards || [])];
+    const seen = new Set<string>();
+    return merged.filter((board) => {
+      if (seen.has(board.id)) return false;
+      seen.add(board.id);
+      return true;
+    });
   },
 
   async createBoard(
@@ -163,6 +194,68 @@ export const taskService = {
     if (error) throw error;
 
     return data;
+  },
+
+  async updateTask(
+    supabase: SupabaseClient,
+    taskId: string,
+    updates: Partial<Omit<Task, "id" | "created_at">>
+  ): Promise<Task> {
+    const { data, error } = await supabase
+      .from("tasks")
+      .update(updates)
+      .eq("id", taskId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return data;
+  },
+
+  async deleteTask(supabase: SupabaseClient, taskId: string) {
+    const { error } = await supabase.from("tasks").delete().eq("id", taskId);
+    if (error) throw error;
+  },
+};
+
+export const boardMemberService = {
+  async getMembers(
+    supabase: SupabaseClient,
+    boardId: string
+  ): Promise<BoardMember[]> {
+    const { data, error } = await supabase
+      .from("board_members")
+      .select("*")
+      .eq("board_id", boardId)
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+
+    return data || [];
+  },
+
+  async inviteMember(
+    supabase: SupabaseClient,
+    member: Omit<BoardMember, "id" | "created_at" | "user_email">
+  ): Promise<BoardMember> {
+    const { data, error } = await supabase
+      .from("board_members")
+      .insert(member)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return data;
+  },
+
+  async removeMember(supabase: SupabaseClient, memberId: string) {
+    const { error } = await supabase
+      .from("board_members")
+      .delete()
+      .eq("id", memberId);
+    if (error) throw error;
   },
 };
 
