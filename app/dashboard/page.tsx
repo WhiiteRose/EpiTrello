@@ -206,7 +206,7 @@ export default function DashboardPage() {
   }
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-rose-50 via-white to-amber-50">
+      <div className="min-h-screen bg-gradient-to-b from-rose-50 via-white to-amber-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
         <NavBar />
         <main className="container mx-auto px-4 py-10 sm:py-16">
           <Card className="mx-auto max-w-xl border-rose-200/70 bg-white/80 shadow-lg backdrop-blur">

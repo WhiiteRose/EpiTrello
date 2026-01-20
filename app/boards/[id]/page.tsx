@@ -737,7 +737,7 @@ export default function BoardPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-rose-50">
+      <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-rose-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
         <NavBar boardTitle="Board unavailable" />
         <main className="container mx-auto px-4 py-10 sm:py-16 flex items-center justify-center">
           <Card className="w-full max-w-xl border-rose-200/70 bg-white/80 shadow-lg backdrop-blur">

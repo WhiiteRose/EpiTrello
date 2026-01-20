@@ -6,12 +6,15 @@ import {
   ArrowRight,
   Filter,
   MoreHorizontal,
+  Moon,
+  Sun,
   Trello,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { useTheme } from "@/lib/contexts/ThemeContext";
 
 interface Props {
   boardTitle?: string;
@@ -29,10 +32,27 @@ export default function NavBar({
 }: Props) {
   const { isSignedIn, user } = useUser();
   const pathname = usePathname();
+  const { theme, toggleTheme } = useTheme();
 
   // const isHomePage = pathname === '/';
   const isDashboardPage = pathname === "/dashboard";
   const isBoardPage = pathname.startsWith("/boards/");
+  const isDarkMode = theme === "dark";
+  const themeLabel = isDarkMode ? "Switch to light mode" : "Switch to dark mode";
+  const themeToggle = (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="text-muted-foreground hover:text-foreground"
+      onClick={toggleTheme}
+      type="button"
+      aria-pressed={isDarkMode}
+      aria-label={themeLabel}
+      title={themeLabel}
+    >
+      {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    </Button>
+  );
 
   if (isBoardPage) {
     return (
@@ -91,6 +111,7 @@ export default function NavBar({
                   )}
                 </Button>
               )}
+              {themeToggle}
             </div>
           </div>
         </div>
@@ -107,7 +128,8 @@ export default function NavBar({
               EpiTrello
             </span>
           </div>
-          <div className="flex items-center spaxe-x-2 sm:space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            {themeToggle}
             <UserButton />
           </div>
         </div>
@@ -123,7 +145,7 @@ export default function NavBar({
             EpiTrello
           </span>
         </div>
-        <div className="flex items-center spaxe-x-2 sm:space-x-4">
+        <div className="flex items-center space-x-2 sm:space-x-4">
           {isSignedIn ? (
             <div className="flex flex-col sm:flex-row items-end sm:items-denter space-y-1 sm:space-y-0 sm:space-x-4">
               <span className="text-xs sm:text-sm text-gray-600 hidden sm:block">
@@ -153,6 +175,7 @@ export default function NavBar({
               </SignUpButton>
             </div>
           )}
+          {themeToggle}
         </div>
       </div>
     </header>
