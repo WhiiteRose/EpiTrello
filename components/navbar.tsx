@@ -15,6 +15,7 @@ import { usePathname } from "next/navigation";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { useTheme } from "@/lib/contexts/ThemeContext";
+import { usePlanOptional } from "@/lib/contexts/PlanContext";
 
 interface Props {
   boardTitle?: string;
@@ -33,6 +34,14 @@ export default function NavBar({
   const { isSignedIn, user } = useUser();
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
+  const plan = usePlanOptional();
+  const planLabel = plan?.hasEntreprisePlan
+    ? "Enterprise"
+    : plan?.hasProPlan
+    ? "Pro"
+    : plan
+    ? "Free"
+    : null;
 
   // const isHomePage = pathname === '/';
   const isDashboardPage = pathname === "/dashboard";
@@ -129,8 +138,20 @@ export default function NavBar({
             </span>
           </div>
           <div className="flex items-center space-x-2 sm:space-x-4">
+            <Link href="/pricing">
+              <Button variant="ghost" size="sm" className="text-xs sm:text-sm">
+                Plans
+              </Button>
+            </Link>
             {themeToggle}
-            <UserButton />
+            <div className="relative flex items-center">
+              <UserButton />
+              {planLabel && (
+                <Badge className="ml-2 text-xs" variant="secondary">
+                  {planLabel}
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
       </header>

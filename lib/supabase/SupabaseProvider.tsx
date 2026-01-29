@@ -66,7 +66,7 @@ export default function SupabaseProvider({
     return () => {
       cancelled = true;
     };
-  }, [session, configError, supabaseUrl, supabaseAnonKey]);
+  }, [session, configError, supabaseUrl, supabaseAnonKey, clerkJwtTemplate]);
 
   return (
     <Context.Provider value={{ supabase, isLoaded }}>

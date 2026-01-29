@@ -6,7 +6,7 @@ interface PlanContextType {
   hasEntreprisePlan: boolean;
 }
 
-const PlanContext = createContext<PlanContextType | undefined>(undefined);
+export const PlanContext = createContext<PlanContextType | undefined>(undefined);
 
 interface PlanProviderProps {
   children: React.ReactNode;
@@ -30,4 +30,8 @@ export const usePlan = () => {
     throw new Error('usePlan needs to be inside the provider');
   }
   return context;
+};
+
+export const usePlanOptional = () => {
+  return useContext(PlanContext);
 };

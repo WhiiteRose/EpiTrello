@@ -48,7 +48,7 @@ export default function DashboardPage() {
     error,
   } = useBoards();
   const router = useRouter();
-  const { isFreeUser } = usePlan();
+  const { isFreeUser, hasProPlan, hasEntreprisePlan } = usePlan();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
   const [showUpgradeDialog, setshowUpgradeDialog] = useState<boolean>(false);
@@ -78,11 +78,21 @@ export default function DashboardPage() {
   const invitedBoardCount = boards.filter(
     (board) => board.user_id !== user?.id
   ).length;
-  const invitedBoardLimit = isFreeUser ? 1 : Number.POSITIVE_INFINITY;
+  const ownedBoardLimit = hasEntreprisePlan
+    ? Number.POSITIVE_INFINITY
+    : hasProPlan
+    ? 5
+    : 1;
+  const invitedBoardLimit = hasEntreprisePlan
+    ? Number.POSITIVE_INFINITY
+    : hasProPlan
+    ? 2
+    : 1;
   let invitedVisibleCount = 0;
   const visibleBoardsWithTaskCount = boardsWithTaskCount.filter((board) => {
     if (board.user_id === user?.id) return true;
-    if (!isFreeUser) return true;
+    if (hasEntreprisePlan) return true;
+    if (!isFreeUser && !hasProPlan) return true;
     if (invitedVisibleCount < invitedBoardLimit) {
       invitedVisibleCount += 1;
       return true;
@@ -90,9 +100,9 @@ export default function DashboardPage() {
     return false;
   });
   const visibleBoardCount = visibleBoardsWithTaskCount.length;
-  const visibleInvitedCount = isFreeUser
-    ? Math.min(invitedBoardCount, invitedBoardLimit)
-    : invitedBoardCount;
+  const visibleInvitedCount = hasEntreprisePlan
+    ? invitedBoardCount
+    : Math.min(invitedBoardCount, invitedBoardLimit);
 
   const filteredBoards = visibleBoardsWithTaskCount.filter((board) => {
     const matchesSearch = board.title
@@ -128,7 +138,13 @@ export default function DashboardPage() {
     });
   }
 
-  const canCreateBoard = !isFreeUser || ownedBoardCount < 1;
+  const canCreateBoard = hasEntreprisePlan || ownedBoardCount < ownedBoardLimit;
+
+  const upgradeCopy = hasEntreprisePlan
+    ? ""
+    : hasProPlan
+    ? "Limite Pro atteinte (5 boards). Passez à Enterprise pour aller au-delà."
+    : "Free: 1 board max. Passez en Pro ou Enterprise pour en créer davantage.";
 
   const handleCreateBoard = async () => {
     if (!canCreateBoard) {
@@ -341,10 +357,11 @@ export default function DashboardPage() {
                 Your boards
               </h2>
               <p className="text-gray-600">Manage your projects and tasks</p>
-              {isFreeUser && (
+              {(isFreeUser || hasProPlan) && (
                 <p className="text-sm text-gray-500 mt-1">
-                  Free plan: {ownedBoardCount}/1 boards created,{" "}
-                  {visibleInvitedCount}/1 invited boards
+                  {hasProPlan
+                    ? `Pro plan: ${ownedBoardCount}/5 boards, ${visibleInvitedCount}/2 invités`
+                    : `Free plan: ${ownedBoardCount}/1 board, ${visibleInvitedCount}/1 invité`}
                 </p>
               )}
             </div>
@@ -647,10 +664,7 @@ export default function DashboardPage() {
         <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
           <DialogHeader>
             <DialogTitle>Upgrade to Create More Boards</DialogTitle>
-            <p className="text-sm text-gray-600">
-              Free users can only create one board. Upgrade to Pro or Entreprise
-              to create unlimited boards.
-            </p>
+            <p className="text-sm text-gray-600">{upgradeCopy}</p>
           </DialogHeader>
           <div className="flex justify-end space-x-4 pt-4">
             <Button
