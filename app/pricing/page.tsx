@@ -20,7 +20,7 @@ export default function PricingPage() {
           <p className="text-xl text-gray-600">Select the perfect plan for your needs</p>
         </div>
         <div className="max-w-5xl mx-auto">
-          <PricingTable newSubscriptionRedirectUrl="/dashboard" />
+          <PricingTable newSubscriptionRedirectUrl="/pricing/success" />
         </div>
       </div>
     </div>
