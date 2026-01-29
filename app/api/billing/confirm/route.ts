@@ -3,10 +3,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-const stripe =
-  stripeSecretKey !== undefined
-    ? new Stripe(stripeSecretKey, { apiVersion: '2024-06-20' })
-    : null;
+const stripe = stripeSecretKey !== undefined ? new Stripe(stripeSecretKey) : null;
 
 export async function POST(request: Request) {
   if (!stripe) {

@@ -8,10 +8,7 @@ const priceIds = {
   enterprise: process.env.STRIPE_PRICE_ENTERPRISE_ID,
 } as const;
 
-const stripe =
-  stripeSecretKey !== undefined
-    ? new Stripe(stripeSecretKey, { apiVersion: '2024-06-20' })
-    : null;
+const stripe = stripeSecretKey !== undefined ? new Stripe(stripeSecretKey) : null;
 
 function getAppUrl(request: Request) {
   if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
