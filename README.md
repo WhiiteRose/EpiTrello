@@ -55,6 +55,11 @@ Open .env.local and fill in:
 
     NEXT_PUBLIC_SUPABASE_URL=Your_Supabase_URL
     NEXT_PUBLIC_SUPABASE_ANON_KEY=Your_Public_anon_key
+    NEXT_PUBLIC_APP_URL=http://localhost:3000
+    STRIPE_SECRET_KEY=Your_Stripe_secret_key
+    STRIPE_WEBHOOK_SECRET=Your_Stripe_webhook_secret
+    STRIPE_PRICE_PRO_ID=price_xxx_for_pro_plan
+    STRIPE_PRICE_ENTERPRISE_ID=price_xxx_for_enterprise_plan
 
 > Where to find these values?  
 > Supabase dashboard → **Project Settings → API**.

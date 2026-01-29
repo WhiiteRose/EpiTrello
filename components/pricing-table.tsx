@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { CheckoutButton } from "./checkout-button";
 import {
   Card,
   CardContent,
@@ -13,7 +14,17 @@ type PricingTableProps = {
   newSubscriptionRedirectUrl?: string;
 };
 
-const plans = [
+type PlanKey = "free" | "pro" | "enterprise";
+
+const plans: Array<{
+  name: string;
+  price: string;
+  description: string;
+  features: string[];
+  cta: string;
+  highlight: boolean;
+  key: PlanKey;
+}> = [
   {
     name: "Free",
     price: "0 EUR",
@@ -53,63 +64,62 @@ const plans = [
 
 export function PricingTable({ newSubscriptionRedirectUrl }: PricingTableProps) {
   const fallbackHref = newSubscriptionRedirectUrl ?? "/dashboard";
-  const proCheckoutUrl = process.env.NEXT_PUBLIC_BILLING_PRO_URL;
-  const enterpriseCheckoutUrl = process.env.NEXT_PUBLIC_BILLING_ENTERPRISE_URL;
+  const proConfigured = Boolean(process.env.STRIPE_PRICE_PRO_ID);
+  const enterpriseConfigured = Boolean(process.env.STRIPE_PRICE_ENTERPRISE_ID);
 
   return (
     <div className="grid gap-6 md:grid-cols-3">
       {plans.map((plan) => {
-        const checkoutUrl =
-          plan.key === "pro"
-            ? proCheckoutUrl
-            : plan.key === "enterprise"
-            ? enterpriseCheckoutUrl
-            : fallbackHref;
-        const needsSetup = plan.key !== "free" && !checkoutUrl;
+        const needsSetup =
+          plan.key !== "free" &&
+          ((plan.key === "pro" && !proConfigured) ||
+            (plan.key === "enterprise" && !enterpriseConfigured));
 
         return (
-        <Card
-          key={plan.name}
-          className={plan.highlight ? "border-primary shadow-md" : undefined}
-        >
-          <CardHeader>
-            <CardTitle className="text-xl">{plan.name}</CardTitle>
-            <CardDescription>{plan.description}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-3xl font-semibold">{plan.price}</div>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              {plan.features.map((feature) => (
-                <li key={feature}>{feature}</li>
-              ))}
-            </ul>
-          </CardContent>
-          <CardFooter>
-            {plan.key === "free" ? (
-              <Button asChild className="w-full">
-                <Link href={fallbackHref}>{plan.cta}</Link>
-              </Button>
-            ) : checkoutUrl ? (
-              <Button asChild className="w-full">
-                <Link href={checkoutUrl}>{plan.cta}</Link>
-              </Button>
-            ) : (
-              <Button className="w-full" disabled>
-                Indisponible
-              </Button>
-            )}
-          </CardFooter>
-          {needsSetup && (
-            <CardFooter className="pt-0">
-              <p className="text-xs text-muted-foreground">
-                Configure{" "}
-                {plan.key === "pro"
-                  ? "NEXT_PUBLIC_BILLING_PRO_URL"
-                  : "NEXT_PUBLIC_BILLING_ENTERPRISE_URL"}
-              </p>
+          <Card
+            key={plan.name}
+            className={plan.highlight ? "border-primary shadow-md" : undefined}
+          >
+            <CardHeader>
+              <CardTitle className="text-xl">{plan.name}</CardTitle>
+              <CardDescription>{plan.description}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-3xl font-semibold">{plan.price}</div>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                {plan.features.map((feature) => (
+                  <li key={feature}>{feature}</li>
+                ))}
+              </ul>
+            </CardContent>
+            <CardFooter>
+              {plan.key === "free" ? (
+                <Button asChild className="w-full">
+                  <Link href={fallbackHref}>{plan.cta}</Link>
+                </Button>
+              ) : (
+                <CheckoutButton
+                  plan={plan.key === "pro" ? "pro" : "enterprise"}
+                  label={plan.cta}
+                  successPath={fallbackHref}
+                  disabled={needsSetup}
+                  disabledReason={
+                    needsSetup
+                      ? "Configurez les IDs de prix Stripe pour activer ce plan."
+                      : undefined
+                  }
+                />
+              )}
             </CardFooter>
-          )}
-        </Card>
+            {needsSetup && (
+              <CardFooter className="pt-0">
+                <p className="text-xs text-muted-foreground">
+                  Configure{" "}
+                  {plan.key === "pro" ? "STRIPE_PRICE_PRO_ID" : "STRIPE_PRICE_ENTERPRISE_ID"}
+                </p>
+              </CardFooter>
+            )}
+          </Card>
         );
       })}
     </div>
