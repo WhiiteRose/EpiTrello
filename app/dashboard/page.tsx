@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { usePlan } from "@/lib/contexts/PlanContext";
 import { useRouter } from "next/navigation";
+import { useInvitations } from "@/lib/hooks/useInvitations";
 
 export default function DashboardPage() {
   const { user } = useUser();
@@ -47,6 +48,14 @@ export default function DashboardPage() {
     loading,
     error,
   } = useBoards();
+  const {
+    invites,
+    loading: invitesLoading,
+    error: invitesError,
+    acceptInvite,
+    declineInvite,
+    actioningId,
+  } = useInvitations();
   const router = useRouter();
   const { isFreeUser, hasProPlan, hasEntreprisePlan } = usePlan();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -164,11 +173,64 @@ export default function DashboardPage() {
     setDeleteModal({ open: false, boardId: null });
   };
 
+  const pendingInvitesSection = (
+    <div className="mb-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+      <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+        <Trello className="h-4 w-4" />
+        Invitations reçues ({invites.length})
+      </div>
+      <div className="mt-3 space-y-2">
+        {invites.length === 0 ? (
+          <div className="rounded-md border border-dashed border-slate-200 dark:border-slate-700 px-3 py-2 text-xs text-slate-500 dark:text-slate-300">
+            Aucune invitation en attente.
+          </div>
+        ) : (
+          invites.map((invite) => (
+            <div
+              key={invite.boardId}
+              className="flex items-center justify-between rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-slate-900 dark:text-slate-100 truncate">
+                  {invite.boardTitle}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-300">
+                  Invité par {invite.inviterName || "un membre"}
+                </p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => declineInvite(invite)}
+                  disabled={invitesLoading || actioningId === invite.boardId}
+                >
+                  Decline
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => acceptInvite(invite)}
+                  disabled={invitesLoading || actioningId === invite.boardId}
+                >
+                  Accept
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      {invitesError && (
+        <p className="mt-2 text-xs text-red-500">{invitesError}</p>
+      )}
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <NavBar />
         <main className="container mx-auto px-4 py-6 sm:py-8">
+          {invites.length > 0 && pendingInvitesSection}
           <div className="flex items-center gap-3 text-gray-700 mb-8">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span className="text-sm sm:text-base">
@@ -272,6 +334,7 @@ export default function DashboardPage() {
             {"Here's what's happening with your boards today."}
           </p>
         </div>
+        {invites.length > 0 && pendingInvitesSection}
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <Card>

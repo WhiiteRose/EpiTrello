@@ -12,6 +12,7 @@ import {
   Board,
   BoardMember,
   ColumnWithTasks,
+  AppUser,
   Task,
 } from "../supabase/models";
 import { useSupabase } from "../supabase/SupabaseProvider";
@@ -421,7 +422,8 @@ export function useBoard(boardId: string) {
     try {
       const newMember = await boardMemberService.inviteMember(supabase!, {
         board_id: board.id,
-        user_id: normalizedUserId,
+        external_user_id: normalizedUserId,
+        user_id: null,
         role: "member",
       });
       setMembers((prev) => [...prev, newMember]);
@@ -444,6 +446,24 @@ export function useBoard(boardId: string) {
     }
   }
 
+  async function searchUsers(query: string): Promise<AppUser[]> {
+    try {
+      const response = await fetch(
+        `/api/users/search?q=${encodeURIComponent(query)}`
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch users");
+      }
+      const data = (await response.json()) as { users: AppUser[] };
+      return data.users || [];
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to search users."
+      );
+      return [];
+    }
+  }
+
   return {
     board,
     columns,
@@ -461,5 +481,33 @@ export function useBoard(boardId: string) {
     inviteMember,
     removeMember,
     loadMembers,
+    searchUsers,
+    async sendInvitation(targetUser: {
+      id: string;
+      username?: string | null;
+      email?: string | null;
+      fullName?: string | null;
+    }) {
+      if (!board || !user) throw new Error("Board is not loaded");
+      try {
+        setError(null);
+        await fetch("/api/invitations/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            invitedUserId: targetUser.id,
+            boardId: board.id,
+            boardTitle: board.title,
+            inviterName: user.username || user.emailAddresses[0]?.emailAddress,
+          }),
+        });
+        return true;
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to send invitation."
+        );
+        return false;
+      }
+    },
   };
 }

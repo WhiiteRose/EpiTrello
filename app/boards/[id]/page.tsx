@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useBoard } from "@/lib/hooks/useBoards";
-import { ColumnWithTasks, Task } from "@/lib/supabase/models";
+import { AppUser, ColumnWithTasks, Task } from "@/lib/supabase/models";
 import {
   DndContext,
   DragEndEvent,
@@ -43,16 +43,16 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   AlertTriangle,
   Calendar,
-  Copy,
   Loader2,
   MoreHorizontal,
   Plus,
   Trash,
   User,
+  Check,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 
 function DroppableColumn({
@@ -344,6 +344,8 @@ export default function BoardPage() {
     members,
     inviteMember,
     removeMember,
+    sendInvitation,
+    searchUsers,
     loading,
     error,
   } = useBoard(id);
@@ -361,9 +363,13 @@ export default function BoardPage() {
     null
   );
   const [isInviteOpen, setIsInviteOpen] = useState(false);
-  const [inviteUserId, setInviteUserId] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [userOptions, setUserOptions] = useState<AppUser[]>([]);
+  const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+  const [userProfiles, setUserProfiles] = useState<Record<string, AppUser>>({});
   const [isEditingTask, setIsEditingTask] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [taskForm, setTaskForm] = useState({
@@ -393,7 +399,6 @@ export default function BoardPage() {
   const ownerCount = board?.user_id ? 1 : 0;
   const totalMembers = ownerCount + members.length;
   const isAtMemberLimit = totalMembers >= memberLimit;
-  const truncatedUserId = user?.id ? `${user.id.slice(0, 12)}...` : "";
 
   function openEditTask(task: Task) {
     setEditingTask(task);
@@ -415,6 +420,54 @@ export default function BoardPage() {
       ...prev,
       [type]: value,
     }));
+  }
+
+  async function fetchUserProfiles(missingIds: string[]) {
+    if (missingIds.length === 0) return;
+    try {
+      const response = await fetch("/api/users/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: missingIds }),
+      });
+      if (!response.ok) return;
+      const data = (await response.json()) as { users: AppUser[] };
+      setUserProfiles((prev) => {
+        const next = { ...prev };
+        data.users.forEach((u) => {
+          next[u.id] = u;
+        });
+        return next;
+      });
+    } catch {
+      // silencieux pour ne pas bloquer l'UI
+    }
+  }
+
+  useEffect(() => {
+    const ids = new Set<string>();
+    if (board?.user_id) ids.add(board.user_id);
+    members.forEach((m) => {
+      if (m.external_user_id) ids.add(m.external_user_id);
+      if (m.user_id) ids.add(m.user_id);
+    });
+    const missing = Array.from(ids).filter((id) => !userProfiles[id]);
+    if (missing.length > 0) {
+      fetchUserProfiles(missing);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board?.user_id, members]);
+
+  function getDisplayName(userId: string | null | undefined) {
+    if (!userId) return "Utilisateur";
+    if (user?.id === userId) return "Vous";
+    const info = userProfiles[userId];
+    return (
+      info?.username ||
+      info?.fullName ||
+      info?.email?.split("@")[0] ||
+      "Utilisateur"
+    );
   }
 
   function clearFilter() {
@@ -599,6 +652,28 @@ export default function BoardPage() {
     setEditingColumnTitle(column.title);
   }
 
+  async function fetchUsers(term: string) {
+    setIsSearchingUsers(true);
+    try {
+      const users = await searchUsers(term);
+      setUserOptions(users);
+    } finally {
+      setIsSearchingUsers(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!isInviteOpen) return;
+    setSelectedUser(null);
+    setUserSearchTerm("");
+    setUserOptions([]);
+    // intentionally not depending on searchUsers to avoid unnecessary reruns
+  }, [isInviteOpen]);
+
+  function triggerUserSearch() {
+    fetchUsers(userSearchTerm);
+  }
+
   async function handleInviteSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setInviteError(null);
@@ -609,24 +684,42 @@ export default function BoardPage() {
       return;
     }
 
-    const normalizedUserId = inviteUserId.trim();
-    if (!normalizedUserId) {
-      setInviteError("User ID is required.");
+    const targetUser = selectedUser;
+    if (!targetUser) {
+      setInviteError("Veuillez choisir un utilisateur.");
       return;
     }
+
+    const normalizedUserId = targetUser.id.trim();
 
     if (user?.id && normalizedUserId === user.id) {
       setInviteError("You are already on this board.");
       return;
     }
 
-    const result = await inviteMember(normalizedUserId);
-    if (!result) {
-      setInviteError("Failed to invite member.");
+    const alreadyMember =
+      board?.user_id === normalizedUserId ||
+      members.some(
+        (member) =>
+          member.external_user_id === normalizedUserId ||
+          member.user_id === normalizedUserId
+      );
+    if (alreadyMember) {
+      setInviteError("Cet utilisateur est déjà membre du board.");
       return;
     }
-    setInviteSuccess("Invite sent.");
-    setInviteUserId("");
+
+    const success = await sendInvitation(targetUser);
+    if (!success) {
+      setInviteError("Failed to send invitation.");
+      return;
+    }
+    setInviteSuccess(
+      targetUser.username || targetUser.fullName
+        ? `Invitation envoyée à ${targetUser.username || targetUser.fullName}.`
+        : "Invite sent."
+    );
+    setSelectedUser(null);
   }
 
   async function handleRemoveMember(memberId: string) {
@@ -929,23 +1022,6 @@ export default function BoardPage() {
                   {totalMembers}/{memberLimit}
                 </span>
               </div>
-              {user?.id && (
-                <div className="flex h-8 items-center gap-2 rounded-full border border-gray-200 bg-white px-3 text-xs text-gray-700">
-                  <span className="font-medium shrink-0">Your ID</span>
-                  <span className="font-mono flex-1 min-w-0 truncate">
-                    {truncatedUserId}
-                  </span>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="h-6 w-6 shrink-0"
-                    onClick={() => navigator.clipboard.writeText(user.id)}
-                  >
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                </div>
-              )}
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -1159,25 +1235,78 @@ export default function BoardPage() {
           <DialogHeader>
             <DialogTitle>Invite Member</DialogTitle>
             <p className="text-sm text-gray-600">
-              Invite someone by Clerk user ID to collaborate on this board.
+              Recherchez un compte et invitez-le directement par nom
+              d&apos;utilisateur.
             </p>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleInviteSubmit}>
             <div className="space-y-2">
-              <Label>User ID</Label>
-              <Input
-                id="inviteUserId"
-                value={inviteUserId}
-                onChange={(event) => setInviteUserId(event.target.value)}
-                placeholder="user_..."
-                autoComplete="off"
-                required
-              />
-              {user?.id && (
-                <p className="text-xs text-gray-500">
-                  Your user ID: <span className="font-mono">{user.id}</span>
-                </p>
-              )}
+              <Label>Rechercher un utilisateur</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={userSearchTerm}
+                  onChange={(event) => setUserSearchTerm(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      triggerUserSearch();
+                    }
+                  }}
+                  placeholder="Nom d'utilisateur ou email"
+                  autoComplete="off"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={triggerUserSearch}
+                  disabled={isSearchingUsers}
+                >
+                  Search
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">
+                Tapez un nom puis appuyez sur Entrée ou sur Search.
+              </p>
+              <div className="max-h-56 overflow-y-auto rounded-md border border-gray-200 bg-white divide-y">
+                {isSearchingUsers ? (
+                  <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Recherche en cours...
+                  </div>
+                ) : userOptions.length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-gray-500">
+                    Aucun utilisateur trouvé.
+                  </div>
+                ) : (
+                  userOptions.map((userOption) => (
+                    <button
+                      type="button"
+                      key={userOption.id}
+                      onClick={() => setSelectedUser(userOption)}
+                      className={`w-full px-3 py-2 text-left flex items-center gap-3 hover:bg-gray-50 transition ${
+                        selectedUser?.id === userOption.id
+                          ? "bg-gray-50"
+                          : ""
+                      }`}
+                    >
+                      <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center">
+                        <User className="h-4 w-4 text-gray-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {userOption.username || "Sans pseudo"}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {userOption.email || "Pas d'email"}
+                        </p>
+                      </div>
+                      {selectedUser?.id === userOption.id && (
+                        <Check className="h-4 w-4 text-green-600" />
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
               {isAtMemberLimit && (
                 <p className="text-sm text-amber-600">
                   Member limit reached. Remove someone to invite more.
@@ -1203,8 +1332,8 @@ export default function BoardPage() {
                     <Badge variant="secondary" className="text-[10px]">
                       Owner
                     </Badge>
-                    <span className="font-mono truncate">
-                      {board?.user_id || "Unknown"}
+                    <span className="truncate">
+                      {getDisplayName(board?.user_id)}
                     </span>
                   </div>
                 </div>
@@ -1218,8 +1347,8 @@ export default function BoardPage() {
                       key={member.id}
                       className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-xs sm:text-sm"
                     >
-                      <span className="font-mono truncate">
-                        {member.user_id}
+                      <span className="truncate">
+                        {getDisplayName(member.user_id)}
                       </span>
                       {isOwner && (
                         <Button
