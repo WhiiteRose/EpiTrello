@@ -1,27 +1,29 @@
-"use client";
-import NavBar from "@/components/navbar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+'use client';
+import NavBar from '@/components/navbar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { useBoard } from "@/lib/hooks/useBoards";
-import { AppUser, ColumnWithTasks, Task } from "@/lib/supabase/models";
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { useBoard } from '@/lib/hooks/useBoards';
+import { useSupabase } from '@/lib/supabase/SupabaseProvider';
+import { AppUser, ColumnWithTasks, Task } from '@/lib/supabase/models';
+import { useUser } from '@clerk/nextjs';
 import {
   DndContext,
   DragEndEvent,
@@ -33,51 +35,45 @@ import {
   useDroppable,
   useSensor,
   useSensors,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+} from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   AlertTriangle,
   Calendar,
+  Check,
+  FolderOpen,
   Loader2,
   MoreHorizontal,
   Plus,
   Trash,
   User,
-  Check,
-} from "lucide-react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import { useUser } from "@clerk/nextjs";
+  X
+} from 'lucide-react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 function DroppableColumn({
   column,
   children,
-  onCreateTask,
   onEditColumn,
+  onOpenCreateTask,
 }: {
   column: ColumnWithTasks;
   children: React.ReactNode;
   onCreateTask: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
   onEditColumn: (column: ColumnWithTasks) => void;
+  onOpenCreateTask: (columnId: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   return (
     <div
       ref={setNodeRef}
-      className={`w-full lg:shrink-0 lg:w-80 ${
-        isOver ? "bg-blue-50 rounded-lg" : ""
-      }`}
+      className={`w-full lg:shrink-0 lg:w-80 ${isOver ? 'bg-blue-50 rounded-lg' : ''}`}
     >
       <div
-        className={`bf-white rounded-lg shadow-sm border ${
-          isOver ? "ring-2 ring-blue-300" : ""
-        }`}
+        className={`bf-white rounded-lg shadow-sm border ${isOver ? 'ring-2 ring-blue-300' : ''}`}
       >
         {/* Column Header */}
         <div className="p-3 sm:p-4 border-b">
@@ -102,97 +98,23 @@ function DroppableColumn({
         </div>
         {/* column content */}
         <div className="p-2">
-          {children}{" "}
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button
-                variant="ghost"
-                className="w-full mt-3 text-gray-500 hover:text-gray-700"
-              >
-                <Plus />
-                Add Task
-              </Button>
-            </DialogTrigger>
-
-            <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
-              <DialogHeader>
-                <DialogTitle>Create New Task</DialogTitle>
-                <p className="text-sm text-gray-600">
-                  Add a task to the board{" "}
-                </p>
-              </DialogHeader>
-              <form className="space-y-4" onSubmit={onCreateTask}>
-                <div className="space-y-2">
-                  <Label>Title *</Label>
-                  <Input
-                    id="title"
-                    name="title"
-                    placeholder="Enter task title"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Description</Label>
-                  <Textarea
-                    id="description"
-                    name="description"
-                    placeholder="Enter task description"
-                    rows={3}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Assignee</Label>
-                  <Input
-                    id="assignee"
-                    name="assignee"
-                    placeholder="Who should do this ?"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Priority</Label>
-                  <Select name="priority" defaultValue="medium">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {["low", "medium", "high"].map((priority, key) => (
-                        <SelectItem key={key} value={priority}>
-                          {priority.charAt(0).toUpperCase() + priority.slice(1)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Due Date</Label>
-                  <Input type="date" id="dueDate" name="dueDate" />
-                </div>
-                <div className="flex justify-end space-x-2 pt-4">
-                  <Button type="submit">Create Task</Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+          {children}{' '}
+          <Button
+            variant="ghost"
+            className="w-full mt-3 text-gray-500 hover:text-gray-700"
+            onClick={() => onOpenCreateTask(column.id)}
+          >
+            <Plus />
+            Add Task
+          </Button>
         </div>
       </div>
     </div>
   );
 }
 
-function SortableTask({
-  task,
-  onEditTask,
-}: {
-  task: Task;
-  onEditTask: (task: Task) => void;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
+function SortableTask({ task, onEditTask }: { task: Task; onEditTask: (task: Task) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
   });
 
@@ -201,17 +123,17 @@ function SortableTask({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
-  function getPriorityColor(priority: "low" | "medium" | "high"): string {
+  function getPriorityColor(priority: 'low' | 'medium' | 'high'): string {
     switch (priority) {
-      case "high":
-        return "bg-red-500";
+      case 'high':
+        return 'bg-red-500';
 
-      case "medium":
-        return "bg-yellow-500";
-      case "low":
-        return "bg-green-500";
+      case 'medium':
+        return 'bg-yellow-500';
+      case 'low':
+        return 'bg-green-500';
       default:
-        return "bg-yellow-500";
+        return 'bg-yellow-500';
     }
   }
 
@@ -237,30 +159,31 @@ function SortableTask({
             </div>
             {/*Task Description */}
             <p className="text-xs text-gray-600 line-clamp-2">
-              {task.description || "No description."}
+              {task.description || 'No description.'}
             </p>
 
             {/* Task Meta */}
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-1 sm:space-x-2 min-w-0">
-                {task.assignee && (
-                  <div className="flex items-center space-x-1 text-xs text-gray-500">
-                    <User className="h-3 w-3" />
-                    <span className="truncate">{task.assignee}</span>
-                  </div>
-                )}
                 {task.due_date && (
                   <div className="flex items-center space-x-1 text-xs text-gray-500">
                     <Calendar className="h-3 w-3" />
                     <span className="truncate">{task.due_date}</span>
                   </div>
                 )}
+                {task.attachment_url && (
+                  <a
+                    href={task.attachment_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center space-x-1 text-xs text-blue-600 underline"
+                  >
+                    <User className="h-3 w-3" />
+                    <span className="truncate">Fichier</span>
+                  </a>
+                )}
               </div>
-              <div
-                className={`w-2 h-2 rounded-full shrink-0 ${getPriorityColor(
-                  task.priority
-                )}`}
-              />
+              <div className={`w-2 h-2 rounded-full shrink-0 ${getPriorityColor(task.priority)}`} />
             </div>
           </div>
         </CardContent>
@@ -270,17 +193,17 @@ function SortableTask({
 }
 
 function TaskOverlay({ task }: { task: Task }) {
-  function getPriorityColor(priority: "low" | "medium" | "high"): string {
+  function getPriorityColor(priority: 'low' | 'medium' | 'high'): string {
     switch (priority) {
-      case "high":
-        return "bg-red-500";
+      case 'high':
+        return 'bg-red-500';
 
-      case "medium":
-        return "bg-yellow-500";
-      case "low":
-        return "bg-green-500";
+      case 'medium':
+        return 'bg-yellow-500';
+      case 'low':
+        return 'bg-green-500';
       default:
-        return "bg-yellow-500";
+        return 'bg-yellow-500';
     }
   }
 
@@ -296,30 +219,31 @@ function TaskOverlay({ task }: { task: Task }) {
           </div>
           {/*Task Description */}
           <p className="text-xs text-gray-600 line-clamp-2">
-            {task.description || "No description."}
+            {task.description || 'No description.'}
           </p>
 
           {/* Task Meta */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1 sm:space-x-2 min-w-0">
-              {task.assignee && (
-                <div className="flex items-center space-x-1 text-xs text-gray-500">
-                  <User className="h-3 w-3" />
-                  <span className="truncate">{task.assignee}</span>
-                </div>
-              )}
               {task.due_date && (
                 <div className="flex items-center space-x-1 text-xs text-gray-500">
                   <Calendar className="h-3 w-3" />
                   <span className="truncate">{task.due_date}</span>
                 </div>
               )}
+              {task.attachment_url && (
+                <a
+                  href={task.attachment_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center space-x-1 text-xs text-blue-600 underline"
+                >
+                  <User className="h-3 w-3" />
+                  <span className="truncate">Fichier</span>
+                </a>
+              )}
             </div>
-            <div
-              className={`w-2 h-2 rounded-full shrink-0 ${getPriorityColor(
-                task.priority
-              )}`}
-            />
+            <div className={`w-2 h-2 rounded-full shrink-0 ${getPriorityColor(task.priority)}`} />
           </div>
         </div>
       </CardContent>
@@ -349,23 +273,22 @@ export default function BoardPage() {
     loading,
     error,
   } = useBoard(id);
+  const { supabase } = useSupabase();
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
-  const [newColor, setNewColor] = useState("");
+  const [newTitle, setNewTitle] = useState('');
+  const [newColor, setNewColor] = useState('');
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isCreatingColumn, setIsCreatingColumn] = useState(false);
   const [isEditingColumn, setIsEditingColumn] = useState(false);
-  const [newColumnTitle, setNewColumnTitle] = useState("");
-  const [editingColumnTitle, setEditingColumnTitle] = useState("");
-  const [editingColumn, setEditingColumn] = useState<ColumnWithTasks | null>(
-    null
-  );
+  const [newColumnTitle, setNewColumnTitle] = useState('');
+  const [editingColumnTitle, setEditingColumnTitle] = useState('');
+  const [editingColumn, setEditingColumn] = useState<ColumnWithTasks | null>(null);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
-  const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [userSearchTerm, setUserSearchTerm] = useState('');
   const [userOptions, setUserOptions] = useState<AppUser[]>([]);
   const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
@@ -373,17 +296,21 @@ export default function BoardPage() {
   const [isEditingTask, setIsEditingTask] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [taskForm, setTaskForm] = useState({
-    title: "",
-    description: "",
-    assignee: "",
-    dueDate: "",
-    priority: "medium" as "low" | "medium" | "high",
+    title: '',
+    description: '',
+    dueDate: '',
+    priority: 'medium' as 'low' | 'medium' | 'high',
+    attachment: null as File | null,
+    attachmentUrl: '',
   });
+  const [createAttachmentName, setCreateAttachmentName] = useState<string>('');
+  const [createAttachment, setCreateAttachment] = useState<File | null>(null);
+  const [isCreatingTaskOpen, setIsCreatingTaskOpen] = useState(false);
+  const [creatingTaskColumnId, setCreatingTaskColumnId] = useState<string | null>(null);
   const memberLimit = 4;
 
   const [filters, setFilters] = useState({
     priority: [] as string[],
-    assignee: [] as string[],
     dueDate: null as string | null,
   });
 
@@ -393,7 +320,7 @@ export default function BoardPage() {
       activationConstraint: {
         distance: 8,
       },
-    })
+    }),
   );
   const isOwner = !!board?.user_id && board.user_id === user?.id;
   const ownerCount = board?.user_id ? 1 : 0;
@@ -404,18 +331,16 @@ export default function BoardPage() {
     setEditingTask(task);
     setTaskForm({
       title: task.title,
-      description: task.description || "",
-      assignee: task.assignee || "",
-      dueDate: task.due_date || "",
+      description: task.description || '',
+      dueDate: task.due_date || '',
       priority: task.priority,
+      attachment: null,
+      attachmentUrl: task.attachment_url || '',
     });
     setIsEditingTask(true);
   }
 
-  function handleFilterChange(
-    type: "priority" | "assignee" | "dueDate",
-    value: string | string[] | null
-  ) {
+  function handleFilterChange(type: 'priority' | 'dueDate', value: string | string[] | null) {
     setFilters((prev) => ({
       ...prev,
       [type]: value,
@@ -425,9 +350,9 @@ export default function BoardPage() {
   async function fetchUserProfiles(missingIds: string[]) {
     if (missingIds.length === 0) return;
     try {
-      const response = await fetch("/api/users/batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch('/api/users/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: missingIds }),
       });
       if (!response.ok) return;
@@ -459,21 +384,15 @@ export default function BoardPage() {
   }, [board?.user_id, members]);
 
   function getDisplayName(userId: string | null | undefined) {
-    if (!userId) return "Utilisateur";
-    if (user?.id === userId) return "Vous";
+    if (!userId) return 'Utilisateur';
+    if (user?.id === userId) return 'Vous';
     const info = userProfiles[userId];
-    return (
-      info?.username ||
-      info?.fullName ||
-      info?.email?.split("@")[0] ||
-      "Utilisateur"
-    );
+    return info?.username || info?.fullName || info?.email?.split('@')[0] || 'Utilisateur';
   }
 
   function clearFilter() {
     setFilters({
       priority: [] as string[],
-      assignee: [] as string[],
       dueDate: null as string | null,
     });
   }
@@ -495,16 +414,16 @@ export default function BoardPage() {
   async function createTask(taskData: {
     title: string;
     description?: string;
-    assignee?: string;
     dueDate?: string;
-    priority: "low" | "medium" | "high";
+    priority: 'low' | 'medium' | 'high';
+    attachmentUrl?: string | null;
   }) {
-    const targetColumn = columns[0];
-    if (!targetColumn) {
-      throw new Error("No column available to add task");
+    const targetColumnId = creatingTaskColumnId || columns[0]?.id;
+    if (!targetColumnId) {
+      throw new Error('No column available to add task');
     }
 
-    await createRealTask(targetColumn.id, taskData);
+    await createRealTask(targetColumnId, taskData);
   }
 
   async function handleCreateTask(e: React.FormEvent<HTMLFormElement>) {
@@ -512,29 +431,46 @@ export default function BoardPage() {
     const formData = new FormData(e.currentTarget);
 
     const taskData = {
-      title: formData.get("title") as string,
-      description: (formData.get("description") as string) || undefined,
-      assignee: (formData.get("assignee") as string) || undefined,
-      dueDate: (formData.get("dueDate") as string) || undefined,
-      priority:
-        (formData.get("priority") as "low" | "medium" | "high") || "medium",
+      title: formData.get('title') as string,
+      description: (formData.get('description') as string) || undefined,
+      dueDate: (formData.get('dueDate') as string) || undefined,
+      priority: (formData.get('priority') as 'low' | 'medium' | 'high') || 'medium',
+      attachment: createAttachment,
     };
 
     if (taskData.title.trim()) {
-      await createTask(taskData);
+      let attachmentUrl: string | null = null;
+      if (taskData.attachment && taskData.attachment.size > 0) {
+        const { data, error } = await supabase!.storage
+          .from(process.env.NEXT_PUBLIC_SUPABASE_ATTACH_BUCKET || 'EpiTrello')
+          .upload(`tasks/${id}/${Date.now()}-${taskData.attachment.name}`, taskData.attachment, {
+            upsert: false,
+          });
+        if (!error && data?.path) {
+          const { data: publicUrl } = supabase!.storage
+            .from(process.env.NEXT_PUBLIC_SUPABASE_ATTACH_BUCKET || 'EpiTrello')
+            .getPublicUrl(data.path);
+          attachmentUrl = publicUrl.publicUrl;
+        }
+      }
 
-      const trigger = document.querySelector(
-        '[data-state="open"'
-      ) as HTMLElement;
-      if (trigger) trigger.click();
+      await createTask({
+        title: taskData.title,
+        description: taskData.description,
+        dueDate: taskData.dueDate,
+        priority: taskData.priority,
+        attachmentUrl,
+      });
+
+      setIsCreatingTaskOpen(false);
+      setCreatingTaskColumnId(null);
+      setCreateAttachment(null);
     }
   }
 
   function handleDragStart(event: DragStartEvent) {
     const taskId = event.active.id as string;
-    const task = columns
-      .flatMap((col) => col.tasks)
-      .find((task) => task.id === taskId);
+    const task = columns.flatMap((col) => col.tasks).find((task) => task.id === taskId);
 
     if (task) {
       setActiveTask(task);
@@ -548,24 +484,16 @@ export default function BoardPage() {
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    const sourceColumn = columns.find((col) =>
-      col.tasks.some((task) => task.id === activeId)
-    );
+    const sourceColumn = columns.find((col) => col.tasks.some((task) => task.id === activeId));
 
-    const targetColumn = columns.find((col) =>
-      col.tasks.some((task) => task.id === overId)
-    );
+    const targetColumn = columns.find((col) => col.tasks.some((task) => task.id === overId));
 
     if (!sourceColumn || !targetColumn) return;
 
     if (sourceColumn.id === targetColumn.id) {
-      const activeIndex = sourceColumn.tasks.findIndex(
-        (task) => task.id === activeId
-      );
+      const activeIndex = sourceColumn.tasks.findIndex((task) => task.id === activeId);
 
-      const overIndex = targetColumn.tasks.findIndex(
-        (task) => task.id === overId
-      );
+      const overIndex = targetColumn.tasks.findIndex((task) => task.id === overId);
 
       if (activeIndex !== overIndex) {
         setColumns((prev: ColumnWithTasks[]) => {
@@ -593,28 +521,18 @@ export default function BoardPage() {
 
     const targetColumn = columns.find((col) => col.id === overId);
     if (targetColumn) {
-      const sourceColumn = columns.find((col) =>
-        col.tasks.some((task) => task.id === taskId)
-      );
+      const sourceColumn = columns.find((col) => col.tasks.some((task) => task.id === taskId));
       if (sourceColumn && sourceColumn.id !== targetColumn.id) {
         await moveTask(taskId, targetColumn.id, targetColumn.tasks.length);
       }
     } else {
       // check to see if were dropping on another task
-      const sourceColumn = columns.find((col) =>
-        col.tasks.some((task) => task.id === taskId)
-      );
-      const targetColumn = columns.find((col) =>
-        col.tasks.some((task) => task.id === overId)
-      );
+      const sourceColumn = columns.find((col) => col.tasks.some((task) => task.id === taskId));
+      const targetColumn = columns.find((col) => col.tasks.some((task) => task.id === overId));
       if (sourceColumn && targetColumn) {
-        const oldIndex = sourceColumn.tasks.findIndex(
-          (task) => task.id === taskId
-        );
+        const oldIndex = sourceColumn.tasks.findIndex((task) => task.id === taskId);
 
-        const newIndex = targetColumn.tasks.findIndex(
-          (task) => task.id === overId
-        );
+        const newIndex = targetColumn.tasks.findIndex((task) => task.id === overId);
 
         if (oldIndex !== newIndex) {
           await moveTask(taskId, targetColumn.id, newIndex);
@@ -630,7 +548,7 @@ export default function BoardPage() {
 
     await createColumn(newColumnTitle.trim());
 
-    setNewColumnTitle("");
+    setNewColumnTitle('');
     setIsCreatingColumn(false);
   }
 
@@ -641,7 +559,7 @@ export default function BoardPage() {
 
     await updateColumn(editingColumn.id, editingColumnTitle.trim());
 
-    setEditingColumnTitle("");
+    setEditingColumnTitle('');
     setIsEditingColumn(false);
     setEditingColumn(null);
   }
@@ -665,7 +583,7 @@ export default function BoardPage() {
   useEffect(() => {
     if (!isInviteOpen) return;
     setSelectedUser(null);
-    setUserSearchTerm("");
+    setUserSearchTerm('');
     setUserOptions([]);
     // intentionally not depending on searchUsers to avoid unnecessary reruns
   }, [isInviteOpen]);
@@ -686,14 +604,14 @@ export default function BoardPage() {
 
     const targetUser = selectedUser;
     if (!targetUser) {
-      setInviteError("Veuillez choisir un utilisateur.");
+      setInviteError('Veuillez choisir un utilisateur.');
       return;
     }
 
     const normalizedUserId = targetUser.id.trim();
 
     if (user?.id && normalizedUserId === user.id) {
-      setInviteError("You are already on this board.");
+      setInviteError('You are already on this board.');
       return;
     }
 
@@ -701,23 +619,22 @@ export default function BoardPage() {
       board?.user_id === normalizedUserId ||
       members.some(
         (member) =>
-          member.external_user_id === normalizedUserId ||
-          member.user_id === normalizedUserId
+          member.external_user_id === normalizedUserId || member.user_id === normalizedUserId,
       );
     if (alreadyMember) {
-      setInviteError("Cet utilisateur est déjà membre du board.");
+      setInviteError('Cet utilisateur est déjà membre du board.');
       return;
     }
 
     const success = await sendInvitation(targetUser);
     if (!success) {
-      setInviteError("Failed to send invitation.");
+      setInviteError('Failed to send invitation.');
       return;
     }
     setInviteSuccess(
       targetUser.username || targetUser.fullName
         ? `Invitation envoyée à ${targetUser.username || targetUser.fullName}.`
-        : "Invite sent."
+        : 'Invite sent.',
     );
     setSelectedUser(null);
   }
@@ -731,12 +648,27 @@ export default function BoardPage() {
     e.preventDefault();
     if (!editingTask) return;
 
+    let attachmentUrl = taskForm.attachmentUrl || editingTask.attachment_url || null;
+    if (taskForm.attachment && taskForm.attachment.size > 0) {
+      const { data, error } = await supabase!.storage
+        .from(process.env.NEXT_PUBLIC_SUPABASE_ATTACH_BUCKET || 'attachments')
+        .upload(`tasks/${id}/${Date.now()}-${taskForm.attachment.name}`, taskForm.attachment, {
+          upsert: false,
+        });
+      if (!error && data?.path) {
+        const { data: publicUrl } = supabase!.storage
+          .from(process.env.NEXT_PUBLIC_SUPABASE_ATTACH_BUCKET || 'attachments')
+          .getPublicUrl(data.path);
+        attachmentUrl = publicUrl.publicUrl;
+      }
+    }
+
     await updateTask(editingTask.id, {
       title: taskForm.title.trim(),
       description: taskForm.description.trim() || null,
-      assignee: taskForm.assignee.trim() || null,
       dueDate: taskForm.dueDate || null,
       priority: taskForm.priority,
+      attachmentUrl,
     });
 
     setIsEditingTask(false);
@@ -754,38 +686,21 @@ export default function BoardPage() {
     ...column,
     tasks: column.tasks.filter((task) => {
       // Filter by priority
-      if (
-        filters.priority.length > 0 &&
-        !filters.priority.includes(task.priority)
-      ) {
+      if (filters.priority.length > 0 && !filters.priority.includes(task.priority)) {
         return false;
       }
-
-      // Filter by due date
-
-      if (filters.dueDate && task.due_date) {
-        const taskDate = new Date(task.due_date).toDateString();
-        const filterDate = new Date(filters.dueDate).toDateString();
-
-        if (taskDate !== filterDate) {
-          return false;
-        }
-      }
-
       return true;
     }),
   }));
 
-  if (loading) {
+  if (loading && !board) {
     return (
       <div className="min-h-screen bg-gray-50">
         <NavBar boardTitle="Loading board..." />
         <main className="container mx-auto px-4 py-6 sm:py-8">
           <div className="flex items-center gap-3 text-gray-700 mb-6">
             <Loader2 className="h-5 w-5 animate-spin" />
-            <span className="text-sm sm:text-base">
-              Loading your board...
-            </span>
+            <span className="text-sm sm:text-base">Loading your board...</span>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div className="h-4 w-40 bg-gray-200 rounded animate-pulse" />
@@ -804,10 +719,7 @@ export default function BoardPage() {
                   </div>
                   <div className="space-y-3">
                     {Array.from({ length: 4 }).map((_, taskIndex) => (
-                      <div
-                        key={taskIndex}
-                        className="rounded-md border border-gray-100 p-3"
-                      >
+                      <div key={taskIndex} className="rounded-md border border-gray-100 p-3">
                         <div className="h-3 w-28 bg-gray-200 rounded animate-pulse mb-2" />
                         <div className="h-3 w-40 bg-gray-200 rounded animate-pulse" />
                       </div>
@@ -844,8 +756,8 @@ export default function BoardPage() {
                     We couldn&apos;t load this board
                   </h2>
                   <p className="text-sm text-gray-600">
-                    The board might be missing or you no longer have access.
-                    Please try again or return to your dashboard.
+                    The board might be missing or you no longer have access. Please try again or
+                    return to your dashboard.
                   </p>
                 </div>
               </div>
@@ -853,9 +765,7 @@ export default function BoardPage() {
                 {error}
               </div>
               <div className="mt-6 flex flex-col sm:flex-row gap-2">
-                <Button onClick={() => window.location.reload()}>
-                  Try again
-                </Button>
+                <Button onClick={() => window.location.reload()}>Try again</Button>
                 <Button asChild variant="outline">
                   <Link href="/dashboard">Back to dashboard</Link>
                 </Button>
@@ -873,17 +783,16 @@ export default function BoardPage() {
         <NavBar
           boardTitle={board?.title}
           onEditBoard={() => {
-            setNewTitle(board?.title ?? "");
-            setNewColor(board?.color ?? "");
+            setNewTitle(board?.title ?? '');
+            setNewColor(board?.color ?? '');
             setIsEditingTitle(true);
           }}
           onFilterClick={() => {
             setIsFilterOpen(true);
           }}
           filterCount={Object.values(filters).reduce(
-            (count, v) =>
-              count + (Array.isArray(v) ? v.length : v !== null ? 1 : 0),
-            0
+            (count, v) => count + (Array.isArray(v) ? v.length : v !== null ? 1 : 0),
+            0,
           )}
         />
         <Dialog open={isEditingTitle} onOpenChange={setIsEditingTitle}>
@@ -907,26 +816,24 @@ export default function BoardPage() {
                 <Label>Board Color</Label>
                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                   {[
-                    "bg-blue-500",
-                    "bg-green-500",
-                    "bg-yellow-500",
-                    "bg-red-500",
-                    "bg-purple-500",
-                    "bg-pink-500",
-                    "bg-indigo-500",
-                    "bg-gray-500",
-                    "bg-orange-500",
-                    "bg-teal-500",
-                    "bg-cyan-500",
-                    "bg-emerald-500",
+                    'bg-blue-500',
+                    'bg-green-500',
+                    'bg-yellow-500',
+                    'bg-red-500',
+                    'bg-purple-500',
+                    'bg-pink-500',
+                    'bg-indigo-500',
+                    'bg-gray-500',
+                    'bg-orange-500',
+                    'bg-teal-500',
+                    'bg-cyan-500',
+                    'bg-emerald-500',
                   ].map((color, key) => (
                     <button
                       key={key}
                       type="button"
                       className={`w-8 h-8 rounded-full ${color} ${
-                        color === newColor
-                          ? "ring-2 ring-offset-2 ring-gray-900"
-                          : ""
+                        color === newColor ? 'ring-2 ring-offset-2 ring-gray-900' : ''
                       }`}
                       onClick={() => setNewColor(color)}
                     />
@@ -934,11 +841,7 @@ export default function BoardPage() {
                 </div>
               </div>
               <div className="flex justify-end space-x-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsEditingTitle(false)}
-                >
+                <Button type="button" variant="outline" onClick={() => setIsEditingTitle(false)}>
                   Cancel
                 </Button>
                 <Button type="submit">Save Changes</Button>
@@ -951,31 +854,23 @@ export default function BoardPage() {
           <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
             <DialogHeader>
               <DialogTitle>Filter Tasks</DialogTitle>
-              <p className="text-sm text-gray-600">
-                Filter tasks by priority, assignee, or due date
-              </p>
+              <p className="text-sm text-gray-600">Filter tasks by priority or due date</p>
             </DialogHeader>
             <div className="space-y-4 ">
               <div className="space-y-2">
                 <Label>Priority</Label>
                 <div className="flex flex-wrap gap-2">
-                  {["low", "medium", "high"].map((priority, key) => (
+                  {['low', 'medium', 'high'].map((priority, key) => (
                     <Button
                       onClick={() => {
-                        const newPriorities = filters.priority.includes(
-                          priority
-                        )
+                        const newPriorities = filters.priority.includes(priority)
                           ? filters.priority.filter((p) => p !== priority)
                           : [...filters.priority, priority];
 
-                        handleFilterChange("priority", newPriorities);
+                        handleFilterChange('priority', newPriorities);
                       }}
                       key={key}
-                      variant={
-                        filters.priority.includes(priority)
-                          ? "default"
-                          : "outline"
-                      }
+                      variant={filters.priority.includes(priority) ? 'default' : 'outline'}
                       size="sm"
                     >
                       {priority.charAt(0).toUpperCase() + priority.slice(1)}
@@ -988,14 +883,12 @@ export default function BoardPage() {
                 <Label>Due Date</Label>
                 <Input
                   type="date"
-                  value={filters.dueDate || ""}
-                  onChange={(e) =>
-                    handleFilterChange("dueDate", e.target.value || null)
-                  }
+                  value={filters.dueDate || ''}
+                  onChange={(e) => handleFilterChange('dueDate', e.target.value || null)}
                 />
               </div>
               <div className="flex justify-between pt-4">
-                <Button type="button" variant={"outline"} onClick={clearFilter}>
+                <Button type="button" variant={'outline'} onClick={clearFilter}>
                   Clear Filters
                 </Button>
                 <Button type="button" onClick={() => setIsFilterOpen(false)}>
@@ -1036,18 +929,12 @@ export default function BoardPage() {
                 <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
                   <DialogHeader>
                     <DialogTitle>Create New Task</DialogTitle>
-                    <p className="text-sm text-gray-600">
-                      Add a task to the board{" "}
-                    </p>
+                    <p className="text-sm text-gray-600">Add a task to the board </p>
                   </DialogHeader>
                   <form className="space-y-4" onSubmit={handleCreateTask}>
                     <div className="space-y-2">
                       <Label>Title *</Label>
-                      <Input
-                        id="title"
-                        name="title"
-                        placeholder="Enter task title"
-                      />
+                      <Input id="title" name="title" placeholder="Enter task title" />
                     </div>
                     <div className="space-y-2">
                       <Label>Description</Label>
@@ -1059,24 +946,15 @@ export default function BoardPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Assignee</Label>
-                      <Input
-                        id="assignee"
-                        name="assignee"
-                        placeholder="Who should do this ?"
-                      />
-                    </div>
-                    <div className="space-y-2">
                       <Label>Priority</Label>
                       <Select name="priority" defaultValue="medium">
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {["low", "medium", "high"].map((priority, key) => (
+                          {['low', 'medium', 'high'].map((priority, key) => (
                             <SelectItem key={key} value={priority}>
-                              {priority.charAt(0).toUpperCase() +
-                                priority.slice(1)}
+                              {priority.charAt(0).toUpperCase() + priority.slice(1)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1085,6 +963,10 @@ export default function BoardPage() {
                     <div className="space-y-2">
                       <Label>Due Date</Label>
                       <Input type="date" id="dueDate" name="dueDate" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Pièce jointe</Label>
+                      <Input type="file" name="attachment" />
                     </div>
                     <div className="flex justify-end space-x-2 pt-4">
                       <Button type="submit">Create Task</Button>
@@ -1123,6 +1005,10 @@ export default function BoardPage() {
                   column={column}
                   onCreateTask={handleCreateTask}
                   onEditColumn={handleEditColumn}
+                  onOpenCreateTask={(columnId) => {
+                    setCreatingTaskColumnId(columnId);
+                    setIsCreatingTaskOpen(true);
+                  }}
                 >
                   <SortableContext
                     items={column.tasks.map((task) => task.id)}
@@ -1130,11 +1016,7 @@ export default function BoardPage() {
                   >
                     <div className="space-y-3 ">
                       {column.tasks.map((task, key) => (
-                        <SortableTask
-                          task={task}
-                          key={key}
-                          onEditTask={openEditTask}
-                        />
+                        <SortableTask task={task} key={key} onEditTask={openEditTask} />
                       ))}
                     </div>
                   </SortableContext>
@@ -1144,7 +1026,7 @@ export default function BoardPage() {
               <div className="w-full lg:shrink-0 lg:w-80">
                 <Button
                   variant="outline"
-                  className="w-full h-full min-h-[200px] border-dashed border-2 text-gray-500 hover:text-gray-700"
+                  className="w-full h-full min-h-50 border-dashed border-2 text-gray-500 hover:text-gray-700"
                   onClick={() => setIsCreatingColumn(true)}
                 >
                   <Plus />
@@ -1152,21 +1034,17 @@ export default function BoardPage() {
                 </Button>
               </div>
 
-              <DragOverlay>
-                {activeTask ? <TaskOverlay task={activeTask} /> : null}
-              </DragOverlay>
+              <DragOverlay>{activeTask ? <TaskOverlay task={activeTask} /> : null}</DragOverlay>
             </div>
           </DndContext>
         </main>
       </div>
 
       <Dialog open={isCreatingColumn} onOpenChange={setIsCreatingColumn}>
-        <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+        <DialogContent className="w-[95vw] max-w-106.25 mx-auto">
           <DialogHeader>
             <DialogTitle>Create New Column</DialogTitle>
-            <p className="text-sm text-gray-600">
-              Add new column to organize your tasks
-            </p>
+            <p className="text-sm text-gray-600">Add new column to organize your tasks</p>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleCreateColumn}>
             <div className="space-y-2">
@@ -1180,11 +1058,7 @@ export default function BoardPage() {
               />
             </div>
             <div className="space-x-2 flex justify-end">
-              <Button
-                type="button"
-                onClick={() => setIsCreatingColumn(false)}
-                variant="outline"
-              >
+              <Button type="button" onClick={() => setIsCreatingColumn(false)} variant="outline">
                 Cancel
               </Button>
               <Button type="submit">Create Column</Button>
@@ -1197,9 +1071,7 @@ export default function BoardPage() {
         <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
           <DialogHeader>
             <DialogTitle>Edit Column</DialogTitle>
-            <p className="text-sm text-gray-600">
-              Update the tile of your Column
-            </p>
+            <p className="text-sm text-gray-600">Update the tile of your Column</p>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleUpdateColumn}>
             <div className="space-y-2">
@@ -1217,7 +1089,7 @@ export default function BoardPage() {
                 type="button"
                 onClick={() => {
                   setIsEditingColumn(false);
-                  setEditingColumnTitle("");
+                  setEditingColumnTitle('');
                   setEditingColumn(null);
                 }}
                 variant="outline"
@@ -1231,12 +1103,11 @@ export default function BoardPage() {
       </Dialog>
 
       <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
-        <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+        <DialogContent className="w-[95vw] max-w-106.25 mx-auto">
           <DialogHeader>
             <DialogTitle>Invite Member</DialogTitle>
             <p className="text-sm text-gray-600">
-              Recherchez un compte et invitez-le directement par nom
-              d&apos;utilisateur.
+              Recherchez un compte et invitez-le directement par nom d&apos;utilisateur.
             </p>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleInviteSubmit}>
@@ -1247,7 +1118,7 @@ export default function BoardPage() {
                   value={userSearchTerm}
                   onChange={(event) => setUserSearchTerm(event.target.value)}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter") {
+                    if (event.key === 'Enter') {
                       event.preventDefault();
                       triggerUserSearch();
                     }
@@ -1274,9 +1145,7 @@ export default function BoardPage() {
                     Recherche en cours...
                   </div>
                 ) : userOptions.length === 0 ? (
-                  <div className="px-3 py-2 text-sm text-gray-500">
-                    Aucun utilisateur trouvé.
-                  </div>
+                  <div className="px-3 py-2 text-sm text-gray-500">Aucun utilisateur trouvé.</div>
                 ) : (
                   userOptions.map((userOption) => (
                     <button
@@ -1284,9 +1153,7 @@ export default function BoardPage() {
                       key={userOption.id}
                       onClick={() => setSelectedUser(userOption)}
                       className={`w-full px-3 py-2 text-left flex items-center gap-3 hover:bg-gray-50 transition ${
-                        selectedUser?.id === userOption.id
-                          ? "bg-gray-50"
-                          : ""
+                        selectedUser?.id === userOption.id ? 'bg-gray-50' : ''
                       }`}
                     >
                       <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center">
@@ -1294,7 +1161,7 @@ export default function BoardPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">
-                          {userOption.username || "Sans pseudo"}
+                          {userOption.username || 'Sans pseudo'}
                         </p>
                         <p className="text-xs text-gray-500 truncate">
                           {userOption.email || "Pas d'email"}
@@ -1312,16 +1179,12 @@ export default function BoardPage() {
                   Member limit reached. Remove someone to invite more.
                 </p>
               )}
-              {inviteError && (
-                <p className="text-sm text-red-600">{inviteError}</p>
-              )}
-              {inviteSuccess && (
-                <p className="text-sm text-green-600">{inviteSuccess}</p>
-              )}
+              {inviteError && <p className="text-sm text-red-600">{inviteError}</p>}
+              {inviteSuccess && <p className="text-sm text-green-600">{inviteSuccess}</p>}
             </div>
             <div>
               <Label className="text-xs">
-                Current Members{" "}
+                Current Members{' '}
                 <span className="font-semibold text-gray-600">
                   {totalMembers}/{memberLimit}
                 </span>
@@ -1332,9 +1195,7 @@ export default function BoardPage() {
                     <Badge variant="secondary" className="text-[10px]">
                       Owner
                     </Badge>
-                    <span className="truncate">
-                      {getDisplayName(board?.user_id)}
-                    </span>
+                    <span className="truncate">{getDisplayName(board?.user_id)}</span>
                   </div>
                 </div>
                 {members.length === 0 ? (
@@ -1347,9 +1208,7 @@ export default function BoardPage() {
                       key={member.id}
                       className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-xs sm:text-sm"
                     >
-                      <span className="truncate">
-                        {getDisplayName(member.user_id)}
-                      </span>
+                      <span className="truncate">{getDisplayName(member.user_id)}</span>
                       {isOwner && (
                         <Button
                           type="button"
@@ -1367,11 +1226,7 @@ export default function BoardPage() {
               </div>
             </div>
             <div className="flex justify-end space-x-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsInviteOpen(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => setIsInviteOpen(false)}>
                 Close
               </Button>
               <Button type="submit" disabled={isAtMemberLimit}>
@@ -1383,7 +1238,7 @@ export default function BoardPage() {
       </Dialog>
 
       <Dialog open={isEditingTask} onOpenChange={setIsEditingTask}>
-        <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+        <DialogContent className="w-[95vw] max-w-106.25 mx-auto">
           <DialogHeader>
             <DialogTitle>Edit Task</DialogTitle>
           </DialogHeader>
@@ -1412,25 +1267,13 @@ export default function BoardPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Assignee</Label>
-              <Input
-                value={taskForm.assignee}
-                onChange={(event) =>
-                  setTaskForm((prev) => ({
-                    ...prev,
-                    assignee: event.target.value,
-                  }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
               <Label>Priority</Label>
               <Select
                 value={taskForm.priority}
                 onValueChange={(value) =>
                   setTaskForm((prev) => ({
                     ...prev,
-                    priority: value as "low" | "medium" | "high",
+                    priority: value as 'low' | 'medium' | 'high',
                   }))
                 }
               >
@@ -1438,7 +1281,7 @@ export default function BoardPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {["low", "medium", "high"].map((priority, key) => (
+                  {['low', 'medium', 'high'].map((priority, key) => (
                     <SelectItem key={key} value={priority}>
                       {priority.charAt(0).toUpperCase() + priority.slice(1)}
                     </SelectItem>
@@ -1459,24 +1302,174 @@ export default function BoardPage() {
                 }
               />
             </div>
-            <div className="flex justify-between pt-4">
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={handleDeleteTask}
-              >
-                Delete
-              </Button>
-              <div className="flex space-x-2">
+            <div className="space-y-2">
+              <Label>Pièce jointe</Label>
+              <Input
+                type="file"
+                id="attachment-edit"
+                className="hidden"
+                onChange={(event) =>
+                  setTaskForm((prev) => ({
+                    ...prev,
+                    attachment: event.target.files?.[0] || null,
+                  }))
+                }
+              />
+              {!taskForm.attachment && !taskForm.attachmentUrl && (
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsEditingTask(false)}
+                  size="sm"
+                  onClick={() => document.getElementById('attachment-edit')?.click()}
                 >
+                  <FolderOpen className="mr-2 h-4 w-4" />
+                  Browse
+                </Button>
+              )}
+
+              {taskForm.attachment && (
+                <div className="flex items-center gap-2 rounded-md border p-2 text-sm bg-gray-50">
+                  <span className="truncate flex-1 font-medium">{taskForm.attachment.name}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() =>
+                      setTaskForm((prev) => ({
+                        ...prev,
+                        attachment: null,
+                      }))
+                    }
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+
+              {!taskForm.attachment && taskForm.attachmentUrl && (
+                <div className="flex items-center gap-2 rounded-md border p-2 text-sm bg-blue-50 border-blue-100">
+                  <a
+                    href={taskForm.attachmentUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="truncate flex-1 font-medium text-blue-700 hover:underline"
+                  >
+                    {decodeURIComponent(taskForm.attachmentUrl.split('/').pop() || 'Fichier joint')}
+                  </a>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-blue-700 hover:text-blue-900 hover:bg-blue-100"
+                    onClick={() =>
+                      setTaskForm((prev) => ({
+                        ...prev,
+                        attachmentUrl: '', // Allow clearing existing attachment
+                      }))
+                    }
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-between pt-4">
+              <Button type="button" variant="destructive" onClick={handleDeleteTask}>
+                Delete
+              </Button>
+              <div className="flex space-x-2">
+                <Button type="button" variant="outline" onClick={() => setIsEditingTask(false)}>
                   Cancel
                 </Button>
                 <Button type="submit">Save</Button>
               </div>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isCreatingTaskOpen} onOpenChange={setIsCreatingTaskOpen}>
+        <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Task</DialogTitle>
+            <p className="text-sm text-gray-600">Add a task to the board </p>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateTask}>
+            <div className="space-y-2">
+              <Label>Title *</Label>
+              <Input id="title" name="title" placeholder="Enter task title" />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                id="description"
+                name="description"
+                placeholder="Enter task description"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Priority</Label>
+              <Select name="priority" defaultValue="medium">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {['low', 'medium', 'high'].map((priority, key) => (
+                    <SelectItem key={key} value={priority}>
+                      {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Due Date</Label>
+              <Input type="date" id="dueDate" name="dueDate" />
+            </div>
+            <div className="space-y-2">
+              <Label>Pièce jointe</Label>
+              <Input
+                type="file"
+                name="attachment"
+                className="hidden"
+                id="attachment-create-modal"
+                onChange={(e) => setCreateAttachment(e.target.files?.[0] || null)}
+              />
+              {!createAttachment ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById('attachment-create-modal')?.click()}
+                >
+                  <FolderOpen className="mr-2 h-4 w-4" />
+                  Browse
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2 rounded-md border p-2 text-sm bg-gray-50">
+                  <span className="truncate flex-1 font-medium">{createAttachment.name}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => {
+                      setCreateAttachment(null);
+                      // Reset the file input value so onChange triggers again if same file selected
+                      const input = document.getElementById(
+                        'attachment-create-modal',
+                      ) as HTMLInputElement;
+                      if (input) input.value = '';
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button type="submit">Create Task</Button>
             </div>
           </form>
         </DialogContent>

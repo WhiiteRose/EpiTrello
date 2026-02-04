@@ -1,19 +1,19 @@
 "use client";
 import { useUser } from "@clerk/nextjs";
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
-  boardDataService,
-  boardMemberService,
-  boardService,
-  columnService,
-  taskService,
+    boardDataService,
+    boardMemberService,
+    boardService,
+    columnService,
+    taskService,
 } from "../services";
 import {
-  Board,
-  BoardMember,
-  ColumnWithTasks,
-  AppUser,
-  Task,
+    AppUser,
+    Board,
+    BoardMember,
+    ColumnWithTasks,
+    Task,
 } from "../supabase/models";
 import { useSupabase } from "../supabase/SupabaseProvider";
 
@@ -141,10 +141,10 @@ export function useBoard(boardId: string) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>();
 
-  const loadBoard = useCallback(async () => {
+  const loadBoard = useCallback(async (withLoading = false) => {
     if (!boardId || !supabase) return;
     try {
-      setLoading(true);
+      if (withLoading) setLoading(true);
       setError(null);
       const data = await boardDataService.getBoardWithColumns(
         supabase,
@@ -155,7 +155,7 @@ export function useBoard(boardId: string) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load boards.");
     } finally {
-      setLoading(false);
+      if (withLoading) setLoading(false);
     }
   }, [boardId, supabase]);
 
@@ -172,7 +172,7 @@ export function useBoard(boardId: string) {
   }, [boardId, supabase]);
 
   useEffect(() => {
-    loadBoard();
+    loadBoard(true);
   }, [loadBoard]);
 
   useEffect(() => {
@@ -188,7 +188,7 @@ export function useBoard(boardId: string) {
         "postgres_changes",
         { event: "*", schema: "public", table: "boards", filter: `id=eq.${boardId}` },
         () => {
-          loadBoard();
+          loadBoard(false);
         }
       )
       .on(
@@ -200,7 +200,7 @@ export function useBoard(boardId: string) {
           filter: `board_id=eq.${boardId}`,
         },
         () => {
-          loadBoard();
+          loadBoard(false);
         }
       )
       .on(
@@ -212,7 +212,7 @@ export function useBoard(boardId: string) {
             (payload as { old?: { column_id?: string } }).old?.column_id;
           if (!columnId) return;
           if (columns.some((column) => column.id === columnId)) {
-            loadBoard();
+            loadBoard(false);
           }
         }
       )
@@ -256,17 +256,17 @@ export function useBoard(boardId: string) {
     taskData: {
       title: string;
       description?: string;
-      assignee?: string;
       dueDate?: string;
       priority: "low" | "medium" | "high";
+      attachmentUrl?: string | null;
     }
   ) {
     try {
       const newTask = await taskService.createTask(supabase!, {
         title: taskData.title,
         description: taskData.description || null,
-        assignee: taskData.assignee || null,
         due_date: taskData.dueDate || null,
+        attachment_url: taskData.attachmentUrl || null,
         column_id: columnId,
         sort_order:
           columns.find((col) => col.id === columnId)?.tasks.length || 0,
@@ -328,17 +328,17 @@ export function useBoard(boardId: string) {
     updates: {
       title?: string;
       description?: string | null;
-      assignee?: string | null;
       dueDate?: string | null;
       priority?: "low" | "medium" | "high";
+      attachmentUrl?: string | null;
     }
   ) {
     try {
       const updatedTask = await taskService.updateTask(supabase!, taskId, {
         title: updates.title,
         description: updates.description ?? null,
-        assignee: updates.assignee ?? null,
         due_date: updates.dueDate ?? null,
+        attachment_url: updates.attachmentUrl ?? null,
         priority: updates.priority,
       });
 
