@@ -26,9 +26,9 @@ export interface Task {
   column_id: string;
   title: string;
   description: string | null;
-  assignee: string | null;
   due_date: string | null;
   priority: 'low' | 'medium' | 'high';
+  attachment_url?: string | null;
   sort_order: number;
   created_at: string;
 }
@@ -36,8 +36,17 @@ export interface Task {
 export interface BoardMember {
   id: string;
   board_id: string;
-  user_id: string;
+  user_id: string | null;
+  external_user_id?: string | null;
   user_email?: string | null;
   role: 'owner' | 'member';
   created_at: string;
+}
+
+export interface AppUser {
+  id: string;
+  username?: string | null;
+  email?: string | null;
+  avatar_url?: string | null;
+  fullName?: string | null;
 }

@@ -164,7 +164,7 @@ export const taskService = {
   async createTask(
     supabase: SupabaseClient,
 
-    task: Omit<Task, "id" | "created_at" | "updated_at">
+    task: Omit<Task, "id" | "created_at" | "updated_at" | "assignee">
   ): Promise<Task> {
     const { data, error } = await supabase
       .from("tasks")
@@ -199,7 +199,7 @@ export const taskService = {
   async updateTask(
     supabase: SupabaseClient,
     taskId: string,
-    updates: Partial<Omit<Task, "id" | "created_at">>
+    updates: Partial<Omit<Task, "id" | "created_at" | "assignee">>
   ): Promise<Task> {
     const { data, error } = await supabase
       .from("tasks")
@@ -237,11 +237,20 @@ export const boardMemberService = {
 
   async inviteMember(
     supabase: SupabaseClient,
-    member: Omit<BoardMember, "id" | "created_at" | "user_email">
+    member: Omit<
+      BoardMember,
+      "id" | "created_at" | "user_id"
+    > & { user_id?: string | null; external_user_id?: string | null }
   ): Promise<BoardMember> {
     const { data, error } = await supabase
       .from("board_members")
-      .insert(member)
+      .insert({
+        user_id: member.user_id ?? null,
+        external_user_id: member.external_user_id ?? member.user_id ?? null,
+        board_id: member.board_id,
+        role: member.role,
+        user_email: member.user_email ?? null,
+      })
       .select()
       .single();
 
