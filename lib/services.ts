@@ -239,7 +239,7 @@ export const boardMemberService = {
     supabase: SupabaseClient,
     member: Omit<
       BoardMember,
-      "id" | "created_at" | "user_email" | "user_id"
+      "id" | "created_at" | "user_id"
     > & { user_id?: string | null; external_user_id?: string | null }
   ): Promise<BoardMember> {
     const { data, error } = await supabase
