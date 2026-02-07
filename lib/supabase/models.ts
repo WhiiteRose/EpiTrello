@@ -28,6 +28,7 @@ export interface Task {
   description: string | null;
   due_date: string | null;
   priority: 'low' | 'medium' | 'high';
+  assignee?: string | null;
   attachment_url?: string | null;
   sort_order: number;
   created_at: string;

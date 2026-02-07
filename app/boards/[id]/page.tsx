@@ -1,23 +1,24 @@
 'use client';
 import NavBar from '@/components/navbar';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useBoard } from '@/lib/hooks/useBoards';
@@ -25,30 +26,30 @@ import { useSupabase } from '@/lib/supabase/SupabaseProvider';
 import { AppUser, ColumnWithTasks, Task } from '@/lib/supabase/models';
 import { useUser } from '@clerk/nextjs';
 import {
-  DndContext,
-  DragEndEvent,
-  DragOverEvent,
-  DragOverlay,
-  DragStartEvent,
-  PointerSensor,
-  rectIntersection,
-  useDroppable,
-  useSensor,
-  useSensors,
+    DndContext,
+    DragEndEvent,
+    DragOverEvent,
+    DragOverlay,
+    DragStartEvent,
+    PointerSensor,
+    rectIntersection,
+    useDroppable,
+    useSensor,
+    useSensors,
 } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  AlertTriangle,
-  Calendar,
-  Check,
-  FolderOpen,
-  Loader2,
-  MoreHorizontal,
-  Plus,
-  Trash,
-  User,
-  X
+    AlertTriangle,
+    Calendar,
+    Check,
+    FolderOpen,
+    Loader2,
+    MoreHorizontal,
+    Plus,
+    Trash,
+    User,
+    X
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -113,7 +114,7 @@ function DroppableColumn({
   );
 }
 
-function SortableTask({ task, onEditTask }: { task: Task; onEditTask: (task: Task) => void }) {
+function SortableTask({ task, onEditTask, onViewTask, users }: { task: Task; onEditTask: (task: Task) => void; onViewTask: (task: Task) => void; users: Record<string, AppUser> }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
   });
@@ -139,7 +140,7 @@ function SortableTask({ task, onEditTask }: { task: Task; onEditTask: (task: Tas
 
   return (
     <div ref={setNodeRef} style={styles} {...listeners} {...attributes}>
-      <Card className="cursor-pointer hover:shadow-md transition-shadow">
+      <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onViewTask(task)}>
         <CardContent className="p-3 sm:p-4">
           <div className="space-y-2 sm:space-y-3">
             {/* Task Header */}
@@ -192,7 +193,7 @@ function SortableTask({ task, onEditTask }: { task: Task; onEditTask: (task: Tas
   );
 }
 
-function TaskOverlay({ task }: { task: Task }) {
+function TaskOverlay({ task, users }: { task: Task; users: Record<string, AppUser> }) {
   function getPriorityColor(priority: 'low' | 'medium' | 'high'): string {
     switch (priority) {
       case 'high':
@@ -243,6 +244,16 @@ function TaskOverlay({ task }: { task: Task }) {
                 </a>
               )}
             </div>
+            {task.assignee && (
+                <div className="flex items-center space-x-1">
+                     <Avatar className="h-5 w-5">
+                        <AvatarImage src={users[task.assignee]?.avatar_url || ''} />
+                        <AvatarFallback className="text-[10px] bg-sky-100 text-sky-800">
+                            {users[task.assignee]?.username?.slice(0, 2).toUpperCase() || '??'}
+                        </AvatarFallback>
+                    </Avatar>
+                </div>
+            )}
             <div className={`w-2 h-2 rounded-full shrink-0 ${getPriorityColor(task.priority)}`} />
           </div>
         </div>
@@ -302,7 +313,11 @@ export default function BoardPage() {
     priority: 'medium' as 'low' | 'medium' | 'high',
     attachment: null as File | null,
     attachmentUrl: '',
+    assignee: '',
   });
+  const [isViewingTask, setIsViewingTask] = useState(false);
+  const [viewingTask, setViewingTask] = useState<Task | null>(null);
+
   const [createAttachmentName, setCreateAttachmentName] = useState<string>('');
   const [createAttachment, setCreateAttachment] = useState<File | null>(null);
   const [isCreatingTaskOpen, setIsCreatingTaskOpen] = useState(false);
@@ -336,8 +351,14 @@ export default function BoardPage() {
       priority: task.priority,
       attachment: null,
       attachmentUrl: task.attachment_url || '',
+      assignee: task.assignee || '',
     });
     setIsEditingTask(true);
+  }
+
+  function handleViewTask(task: Task) {
+    setViewingTask(task);
+    setIsViewingTask(true);
   }
 
   function handleFilterChange(type: 'priority' | 'dueDate', value: string | string[] | null) {
@@ -417,6 +438,7 @@ export default function BoardPage() {
     dueDate?: string;
     priority: 'low' | 'medium' | 'high';
     attachmentUrl?: string | null;
+    assignee?: string | null;
   }) {
     const targetColumnId = creatingTaskColumnId || columns[0]?.id;
     if (!targetColumnId) {
@@ -436,6 +458,7 @@ export default function BoardPage() {
       dueDate: (formData.get('dueDate') as string) || undefined,
       priority: (formData.get('priority') as 'low' | 'medium' | 'high') || 'medium',
       attachment: createAttachment,
+      assignee: (formData.get('assignee') as string) || undefined,
     };
 
     if (taskData.title.trim()) {
@@ -460,6 +483,7 @@ export default function BoardPage() {
         dueDate: taskData.dueDate,
         priority: taskData.priority,
         attachmentUrl,
+        assignee: taskData.assignee,
       });
 
       setIsCreatingTaskOpen(false);
@@ -669,6 +693,7 @@ export default function BoardPage() {
       dueDate: taskForm.dueDate || null,
       priority: taskForm.priority,
       attachmentUrl,
+      assignee: taskForm.assignee || null,
     });
 
     setIsEditingTask(false);
@@ -1016,7 +1041,7 @@ export default function BoardPage() {
                   >
                     <div className="space-y-3 ">
                       {column.tasks.map((task, key) => (
-                        <SortableTask task={task} key={key} onEditTask={openEditTask} />
+                        <SortableTask task={task} key={key} onEditTask={openEditTask} onViewTask={handleViewTask} users={userProfiles} />
                       ))}
                     </div>
                   </SortableContext>
@@ -1034,11 +1059,78 @@ export default function BoardPage() {
                 </Button>
               </div>
 
-              <DragOverlay>{activeTask ? <TaskOverlay task={activeTask} /> : null}</DragOverlay>
+              <DragOverlay>{activeTask ? <TaskOverlay task={activeTask} users={userProfiles} /> : null}</DragOverlay>
             </div>
           </DndContext>
         </main>
       </div>
+
+      <Dialog open={isViewingTask} onOpenChange={setIsViewingTask}>
+        <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+          <DialogHeader>
+            <DialogTitle>Task Details</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <h3 className="font-semibold text-lg">{viewingTask?.title}</h3>
+              <p className="text-sm text-gray-600">{viewingTask?.description || 'No description'}</p>
+            </div>
+            
+            <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-500">Priority:</span>
+                     <Badge variant={viewingTask?.priority === 'high' ? 'destructive' : viewingTask?.priority === 'medium' ? 'default' : 'secondary'} className="capitalize">
+                        {viewingTask?.priority}
+                     </Badge>
+                </div>
+                 <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-500">Due Date:</span>
+                    <span className="text-sm text-gray-900">{viewingTask?.due_date || 'No due date'}</span>
+                </div>
+                 <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-500">Assignee:</span>
+                    {viewingTask?.assignee ? (
+                         <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                                <AvatarImage src={userProfiles[viewingTask.assignee]?.avatar_url || ''} />
+                                <AvatarFallback className="text-[10px] bg-sky-100 text-sky-800">
+                                    {userProfiles[viewingTask.assignee]?.username?.slice(0, 2).toUpperCase() || '??'}
+                                </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm text-gray-900">{getDisplayName(viewingTask.assignee)}</span>
+                        </div>
+                    ) : (
+                         <span className="text-sm text-gray-900">Unassigned</span>
+                    )}
+                </div>
+                {viewingTask?.attachment_url && (
+                    <div className="flex flex-col gap-1">
+                        <span className="text-sm font-medium text-gray-500">Attachment:</span>
+                         <a
+                            href={viewingTask.attachment_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-2 text-sm text-blue-600 underline"
+                        >
+                            <FolderOpen className="h-4 w-4" />
+                            {decodeURIComponent(viewingTask.attachment_url.split('/').pop() || 'Download')}
+                        </a>
+                    </div>
+                )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+                 <Button onClick={() => setIsViewingTask(false)} variant="outline">Close</Button>
+                <Button onClick={() => {
+                    if(viewingTask) {
+                        openEditTask(viewingTask);
+                        setIsViewingTask(false);
+                    }
+                }}>Edit</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isCreatingColumn} onOpenChange={setIsCreatingColumn}>
         <DialogContent className="w-[95vw] max-w-106.25 mx-auto">
@@ -1286,6 +1378,36 @@ export default function BoardPage() {
                       {priority.charAt(0).toUpperCase() + priority.slice(1)}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Assignee</Label>
+               <Select
+                value={taskForm.assignee}
+                onValueChange={(value) =>
+                  setTaskForm((prev) => ({
+                    ...prev,
+                    assignee: value,
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a member" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {members.map((member) => (
+                    <SelectItem key={member.id} value={member.user_id || member.external_user_id || ''}>
+                      {getDisplayName(member.user_id || member.external_user_id)}
+                    </SelectItem>
+                  ))}
+                   {/* Add yourself if not already in members list (e.g. owner) */}
+                  {board?.user_id && !members.some(m => m.user_id === board.user_id) && (
+                       <SelectItem value={board.user_id}>
+                          {getDisplayName(board.user_id)}
+                       </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
