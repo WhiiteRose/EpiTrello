@@ -164,7 +164,7 @@ export const taskService = {
   async createTask(
     supabase: SupabaseClient,
 
-    task: Omit<Task, "id" | "created_at" | "updated_at" | "assignee">
+    task: Omit<Task, "id" | "created_at" | "updated_at">
   ): Promise<Task> {
     const { data, error } = await supabase
       .from("tasks")
@@ -199,7 +199,7 @@ export const taskService = {
   async updateTask(
     supabase: SupabaseClient,
     taskId: string,
-    updates: Partial<Omit<Task, "id" | "created_at" | "assignee">>
+    updates: Partial<Omit<Task, "id" | "created_at">>
   ): Promise<Task> {
     const { data, error } = await supabase
       .from("tasks")
