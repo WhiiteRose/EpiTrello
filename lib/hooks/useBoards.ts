@@ -259,6 +259,7 @@ export function useBoard(boardId: string) {
       dueDate?: string;
       priority: "low" | "medium" | "high";
       attachmentUrl?: string | null;
+      assignee?: string | null;
     }
   ) {
     try {
@@ -271,6 +272,7 @@ export function useBoard(boardId: string) {
         sort_order:
           columns.find((col) => col.id === columnId)?.tasks.length || 0,
         priority: taskData.priority || "medium",
+        assignee: taskData.assignee || null,
       });
 
       setColumns((prev) =>
@@ -331,6 +333,7 @@ export function useBoard(boardId: string) {
       dueDate?: string | null;
       priority?: "low" | "medium" | "high";
       attachmentUrl?: string | null;
+      assignee?: string | null;
     }
   ) {
     try {
@@ -340,6 +343,7 @@ export function useBoard(boardId: string) {
         due_date: updates.dueDate ?? null,
         attachment_url: updates.attachmentUrl ?? null,
         priority: updates.priority,
+        assignee: updates.assignee ?? null,
       });
 
       setColumns((prev) =>
