@@ -43,18 +43,17 @@ export async function PATCH(
 
         // update role
         console.log("Updating role", { memberId, role, boardId });
-        const { error, count } = await supabaseAdmin
+        const { error } = await supabaseAdmin
             .from("board_members")
             .update({ role })
             .eq("id", memberId)
-            .select('*', { count: 'exact' });
+            .select('*');
 
         if (error) {
             console.error("Update Role DB Error:", error);
             throw error;
         }
 
-        console.log("Update Role Success, rows affected:", count);
 
         return NextResponse.json({ ok: true });
     } catch (error) {
