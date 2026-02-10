@@ -38,10 +38,10 @@ export default function NavBar({
   const planLabel = plan?.hasEntreprisePlan
     ? "Enterprise"
     : plan?.hasProPlan
-    ? "Pro"
-    : plan
-    ? "Free"
-    : null;
+      ? "Pro"
+      : plan
+        ? "Free"
+        : null;
 
   // const isHomePage = pathname === '/';
   const isDashboardPage = pathname === "/dashboard";
@@ -103,9 +103,8 @@ export default function NavBar({
                 <Button
                   variant="outline"
                   size="sm"
-                  className={`text-xs sm:text-sm ${
-                    filterCount > 0 ? "bg-blue-100 border-blue-200" : "0"
-                  }`}
+                  className={`text-xs sm:text-sm ${filterCount > 0 ? "bg-blue-100 border-blue-200" : "0"
+                    }`}
                   onClick={onFilterClick}
                 >
                   <Filter className="h-3 w-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
@@ -141,6 +140,11 @@ export default function NavBar({
             <Link href="/pricing">
               <Button variant="ghost" size="sm" className="text-xs sm:text-sm">
                 Plans
+              </Button>
+            </Link>
+            <Link href="/my-tasks">
+              <Button variant="ghost" size="sm" className="text-xs sm:text-sm">
+                My Tasks
               </Button>
             </Link>
             {themeToggle}
