@@ -41,6 +41,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
+  AlertCircle,
   AlertTriangle,
   Calendar,
   Check,
@@ -61,12 +62,14 @@ function DroppableColumn({
   children,
   onEditColumn,
   onOpenCreateTask,
+  canEdit,
 }: {
   column: ColumnWithTasks;
   children: React.ReactNode;
   onCreateTask: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
   onEditColumn: (column: ColumnWithTasks) => void;
   onOpenCreateTask: (columnId: string) => void;
+  canEdit: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   return (
@@ -88,36 +91,41 @@ function DroppableColumn({
                 {column.tasks.length}
               </Badge>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="shrink-0"
-              onClick={() => onEditColumn(column)}
-            >
-              <MoreHorizontal />
-            </Button>
+            {canEdit && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0"
+                onClick={() => onEditColumn(column)}
+              >
+                <MoreHorizontal />
+              </Button>
+            )}
           </div>
         </div>
         {/* column content */}
         <div className="p-2">
           {children}{' '}
-          <Button
-            variant="ghost"
-            className="w-full mt-3 text-gray-500 hover:text-gray-700"
-            onClick={() => onOpenCreateTask(column.id)}
-          >
-            <Plus />
-            Add Task
-          </Button>
+          {canEdit && (
+            <Button
+              variant="ghost"
+              className="w-full mt-3 text-gray-500 hover:text-gray-700"
+              onClick={() => onOpenCreateTask(column.id)}
+            >
+              <Plus />
+              Add Task
+            </Button>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function SortableTask({ task, onEditTask, onViewTask, users }: { task: Task; onEditTask: (task: Task) => void; onViewTask: (task: Task) => void; users: Record<string, AppUser> }) {
+function SortableTask({ task, onEditTask, onViewTask, users, canEdit }: { task: Task; onEditTask: (task: Task) => void; onViewTask: (task: Task) => void; users: Record<string, AppUser>; canEdit: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
+    disabled: !canEdit,
   });
 
   const styles = {
@@ -149,15 +157,17 @@ function SortableTask({ task, onEditTask, onViewTask, users }: { task: Task; onE
               <h4 className="font-medium text-gray-900 text-sm leading-tight flex-1 min-w-0 pr-2">
                 {task.title}
               </h4>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={() => onEditTask(task)}
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
+              {canEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={() => onEditTask(task)}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              )}
             </div>
             {/*Task Description */}
             <p className="text-xs text-gray-600 line-clamp-2">
@@ -321,8 +331,11 @@ export default function BoardPage() {
     createLabel,
     deleteLabel,
     assignLabel,
-    removeLabel
+    removeLabel,
+    updateMemberRole,
+    loadLabels
   } = useBoard(id);
+
   const { supabase } = useSupabase();
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -368,6 +381,9 @@ export default function BoardPage() {
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [isCreatingTaskOpen, setIsCreatingTaskOpen] = useState(false);
   const [creatingTaskColumnId, setCreatingTaskColumnId] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<'viewer' | 'member' | 'owner'>('member');
+  const [isOwnershipTransferOpen, setIsOwnershipTransferOpen] = useState(false);
+  const [pendingNewOwner, setPendingNewOwner] = useState<{ memberId: string; userId: string } | null>(null);
   const memberLimit = 4;
 
   const [filters, setFilters] = useState({
@@ -389,7 +405,17 @@ export default function BoardPage() {
   const isAtMemberLimit = totalMembers >= memberLimit;
 
   const viewer = members.find(m => m.user_id === user?.id || m.external_user_id === user?.id);
-  const canEdit = isOwner || (viewer && viewer.role !== 'viewer');
+  // Debugging permissions
+  console.log('Permission Debug:', {
+    userId: user?.id,
+    boardOwnerId: board?.user_id,
+    isOwner,
+    viewerRole: viewer?.role,
+    viewerId: viewer?.user_id,
+    viewerExternalId: viewer?.external_user_id,
+    allMembers: members
+  });
+  const canEdit = isOwner || (!!viewer && viewer.role !== 'viewer');
 
   function openEditTask(task: Task) {
     setEditingTask(task);
@@ -508,7 +534,6 @@ export default function BoardPage() {
 
   function getDisplayName(userId: string | null | undefined) {
     if (!userId) return 'Utilisateur';
-    if (user?.id === userId) return 'Vous';
     const info = userProfiles[userId];
     return info?.username || info?.fullName || info?.email?.split('@')[0] || 'Utilisateur';
   }
@@ -522,6 +547,7 @@ export default function BoardPage() {
 
   async function handleUpdateBoard(e: React.FormEvent) {
     e.preventDefault();
+    if (!canEdit) return;
 
     if (!newTitle.trim() || !board) return;
 
@@ -538,6 +564,7 @@ export default function BoardPage() {
 
   async function handleCreateTask(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!canEdit) return;
     const formData = new FormData(e.currentTarget);
 
     const taskData = {
@@ -584,6 +611,7 @@ export default function BoardPage() {
   }
 
   function handleDragStart(event: DragStartEvent) {
+    if (!canEdit) return;
     const taskId = event.active.id as string;
     const task = columns.flatMap((col) => col.tasks).find((task) => task.id === taskId);
 
@@ -593,6 +621,7 @@ export default function BoardPage() {
   }
 
   function handleDragOver(event: DragOverEvent) {
+    if (!canEdit) return;
     const { active, over } = event;
     if (!over) return;
 
@@ -628,6 +657,7 @@ export default function BoardPage() {
   }
 
   async function handleDragEnd(event: DragEndEvent) {
+    if (!canEdit) return;
     const { active, over } = event;
     if (!over) return;
 
@@ -658,6 +688,7 @@ export default function BoardPage() {
 
   async function handleCreateColumn(e: React.FormEvent) {
     e.preventDefault();
+    if (!canEdit) return;
 
     if (!newColumnTitle.trim()) return;
 
@@ -669,6 +700,7 @@ export default function BoardPage() {
 
   async function handleUpdateColumn(e: React.FormEvent) {
     e.preventDefault();
+    if (!canEdit) return;
 
     if (!editingColumnTitle.trim() || !editingColumn) return;
 
@@ -741,7 +773,7 @@ export default function BoardPage() {
       return;
     }
 
-    const success = await sendInvitation(targetUser);
+    const success = await sendInvitation(targetUser, selectedRole);
     if (!success) {
       setInviteError('Failed to send invitation.');
       return;
@@ -759,9 +791,49 @@ export default function BoardPage() {
     await removeMember(memberId);
   }
 
+  function handleRoleChange(memberId: string, newRole: string, memberUserId: string) {
+    // If trying to assign owner role, show confirmation dialog
+    if (newRole === 'owner') {
+      setPendingNewOwner({ memberId, userId: memberUserId });
+      setIsOwnershipTransferOpen(true);
+    } else {
+      // For other roles, update directly
+      updateMemberRole(memberId, newRole);
+    }
+  }
+
+  async function confirmOwnershipTransfer() {
+    if (!pendingNewOwner || !board) return;
+
+    try {
+      // Call API to transfer ownership
+      const response = await fetch(`/api/boards/${board.id}/transfer-ownership`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          newOwnerId: pendingNewOwner.userId,
+          memberRecordId: pendingNewOwner.memberId
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to transfer ownership');
+      }
+
+      // Reload the board to reflect changes
+      window.location.reload();
+    } catch (error) {
+      console.error('Ownership transfer failed:', error);
+      alert('Failed to transfer ownership. Please try again.');
+    } finally {
+      setIsOwnershipTransferOpen(false);
+      setPendingNewOwner(null);
+    }
+  }
+
   async function handleUpdateTask(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!editingTask) return;
+    if (!editingTask || !canEdit) return;
 
     let attachmentUrl = taskForm.attachmentUrl || editingTask.attachment_url || null;
     if (taskForm.attachment && taskForm.attachment.size > 0) {
@@ -806,7 +878,7 @@ export default function BoardPage() {
   }
 
   async function handleDeleteTask() {
-    if (!editingTask) return;
+    if (!editingTask || !canEdit) return;
     await deleteTask(editingTask.id);
     setIsEditingTask(false);
     setEditingTask(null);
@@ -1142,6 +1214,7 @@ export default function BoardPage() {
                     setCreatingTaskColumnId(columnId);
                     setIsCreatingTaskOpen(true);
                   }}
+                  canEdit={canEdit}
                 >
                   <SortableContext
                     items={column.tasks.map((task) => task.id)}
@@ -1149,7 +1222,7 @@ export default function BoardPage() {
                   >
                     <div className="space-y-3 ">
                       {column.tasks.map((task, key) => (
-                        <SortableTask task={task} key={key} onEditTask={openEditTask} onViewTask={handleViewTask} users={userProfiles} />
+                        <SortableTask task={task} key={key} onEditTask={openEditTask} onViewTask={handleViewTask} users={userProfiles} canEdit={canEdit} />
                       ))}
                     </div>
                   </SortableContext>
@@ -1300,12 +1373,14 @@ export default function BoardPage() {
 
           <div className="flex justify-end gap-2 pt-4">
             <Button onClick={() => setIsViewingTask(false)} variant="outline">Close</Button>
-            <Button onClick={() => {
-              if (viewingTask) {
-                openEditTask(viewingTask);
-                setIsViewingTask(false);
-              }
-            }}>Edit</Button>
+            {canEdit && (
+              <Button onClick={() => {
+                if (viewingTask) {
+                  openEditTask(viewingTask);
+                  setIsViewingTask(false);
+                }
+              }}>Edit</Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -1443,66 +1518,152 @@ export default function BoardPage() {
                   ))
                 )}
               </div>
-              {isAtMemberLimit && (
-                <p className="text-sm text-amber-600">
-                  Member limit reached. Remove someone to invite more.
-                </p>
-              )}
-              {inviteError && <p className="text-sm text-red-600">{inviteError}</p>}
-              {inviteSuccess && <p className="text-sm text-green-600">{inviteSuccess}</p>}
             </div>
-            <div>
-              <Label className="text-xs">
-                Current Members{' '}
-                <span className="font-semibold text-gray-600">
-                  {totalMembers}/{memberLimit}
-                </span>
-              </Label>
-              <div className="mt-2 space-y-2">
-                <div className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-xs sm:text-sm">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Badge variant="secondary" className="text-[10px]">
-                      Owner
-                    </Badge>
-                    <span className="truncate">{getDisplayName(board?.user_id)}</span>
-                  </div>
-                </div>
-                {members.length === 0 ? (
-                  <div className="rounded-md border border-dashed border-gray-200 px-3 py-2 text-xs text-gray-500">
-                    No additional members yet.
-                  </div>
-                ) : (
-                  members.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-xs sm:text-sm"
-                    >
-                      <span className="truncate">{getDisplayName(member.user_id)}</span>
-                      {isOwner && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-gray-500 hover:text-red-600"
-                          onClick={() => handleRemoveMember(member.id)}
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  ))
-                )}
+            {inviteError && (
+              <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                {inviteError}
               </div>
-            </div>
-            <div className="flex justify-end space-x-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setIsInviteOpen(false)}>
-                Close
-              </Button>
-              <Button type="submit" disabled={isAtMemberLimit}>
+            )}
+            {inviteSuccess && (
+              <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md flex items-center gap-2">
+                <Check className="h-4 w-4" />
+                {inviteSuccess}
+              </div>
+            )}
+            <div className="flex justify-end pt-2">
+              <Button type="submit" disabled={!selectedUser}>
                 Send Invite
               </Button>
             </div>
           </form>
+
+          <div className="mt-6 pt-6 border-t">
+            <h4 className="font-medium mb-4">Membres du tableau</h4>
+            <div className="space-y-3">
+              {/* Explicitly render Board Owner */}
+              {board?.user_id && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-medium text-xs">
+                      {getDisplayName(board.user_id).substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">
+                        {board.user_id === user?.id
+                          ? `${getDisplayName(board.user_id)} (You)`
+                          : getDisplayName(board.user_id)}
+                      </p>
+                      <p className="text-xs text-gray-500 capitalize">Owner</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Render other members */}
+              {members.filter(m => m.user_id !== board?.user_id).map((member) => (
+                <div key={member.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-medium text-xs">
+                      {getDisplayName(member.user_id || member.external_user_id || '').substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{getDisplayName(member.user_id || member.external_user_id)}</p>
+                      <p className="text-xs text-gray-500 capitalize">{member.role}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isOwner && member.user_id !== user?.id && (
+                      <Select
+                        value={member.role}
+                        onValueChange={(val) => handleRoleChange(member.id, val, member.user_id || member.external_user_id || '')}
+                      >
+                        <SelectTrigger className="h-7 text-xs w-[100px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="viewer">Viewer</SelectItem>
+                          <SelectItem value="member">Member</SelectItem>
+                          <SelectItem value="owner">Owner</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {isOwner && member.user_id !== user?.id && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleRemoveMember(member.id)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {isAtMemberLimit && (
+            <p className="text-sm text-amber-600">
+              Member limit reached. Remove someone to invite more.
+            </p>
+          )}
+
+
+
+        </DialogContent>
+      </Dialog>
+
+      {/* Ownership Transfer Confirmation Dialog */}
+      <Dialog open={isOwnershipTransferOpen} onOpenChange={setIsOwnershipTransferOpen}>
+        <DialogContent className="w-[95vw] max-w-[500px] mx-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertCircle className="h-5 w-5" />
+              Transfer Board Ownership
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
+              <p className="text-sm text-amber-900 font-medium mb-2">
+                ⚠️ Warning: This action cannot be undone!
+              </p>
+              <p className="text-sm text-amber-800">
+                You are about to transfer ownership of this board to{' '}
+                <span className="font-semibold">
+                  {pendingNewOwner && getDisplayName(pendingNewOwner.userId)}
+                </span>.
+              </p>
+            </div>
+
+            <div className="space-y-2 text-sm text-gray-700">
+              <p className="font-medium">After transferring ownership:</p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li>You will become a regular <strong>Member</strong></li>
+                <li>You will <strong>lose the ability</strong> to manage members</li>
+                <li>You will <strong>no longer</strong> be able to change roles or remove members</li>
+                <li>The new owner will have <strong>full control</strong> over the board</li>
+              </ul>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsOwnershipTransferOpen(false);
+                  setPendingNewOwner(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={confirmOwnershipTransfer}
+              >
+                Yes, Transfer Ownership
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1512,6 +1673,7 @@ export default function BoardPage() {
             <DialogTitle>Edit Task</DialogTitle>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleUpdateTask}>
+
             <div className="space-y-2">
               <Label>Title *</Label>
               <Input
@@ -1710,9 +1872,9 @@ export default function BoardPage() {
                 <Button type="submit">Save</Button>
               </div>
             </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+          </form >
+        </DialogContent >
+      </Dialog >
       <Dialog open={isCreatingTaskOpen} onOpenChange={setIsCreatingTaskOpen}>
         <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
           <DialogHeader>

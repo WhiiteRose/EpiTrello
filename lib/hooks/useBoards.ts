@@ -582,7 +582,7 @@ export function useBoard(boardId: string) {
       username?: string | null;
       email?: string | null;
       fullName?: string | null;
-    }) {
+    }, role: 'viewer' | 'member' | 'owner' = 'member') {
       if (!board || !user) throw new Error("Board is not loaded");
       try {
         setError(null);
@@ -594,6 +594,7 @@ export function useBoard(boardId: string) {
             boardId: board.id,
             boardTitle: board.title,
             inviterName: user.username || user.emailAddresses[0]?.emailAddress,
+            role,
           }),
         });
         return true;
@@ -604,10 +605,26 @@ export function useBoard(boardId: string) {
         return false;
       }
     },
+    async updateMemberRole(memberId: string, role: string) {
+      if (!board) return;
+      try {
+        await fetch(`/api/boards/${board.id}/members`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ memberId, role, boardId: board.id }),
+        });
+        // Optimistic update
+        setMembers(prev => prev.map(m => m.id === memberId ? { ...m, role: role as any } : m));
+      } catch (err) {
+        console.error("Failed to update member role", err);
+        setError("Failed to update member role");
+      }
+    },
     labels,
     createLabel,
     deleteLabel,
     assignLabel,
     removeLabel,
+    loadLabels
   };
 }

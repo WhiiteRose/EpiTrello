@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
@@ -32,6 +32,11 @@ export async function POST(req: Request) {
       );
     }
 
+    const user = await clerkClient.users.getUser(userId);
+    const pendingInvites = (user.publicMetadata?.pendingInvites as any[]) || [];
+    const invite = pendingInvites.find((i) => i.boardId === boardId);
+    const role = invite?.role || 'member';
+
     // upsert-like behavior to avoid duplicate error
     const { error } = await supabaseAdmin
       .from("board_members")
@@ -39,7 +44,7 @@ export async function POST(req: Request) {
         {
           board_id: boardId,
           user_id: userId,
-          role: "member",
+          role,
         },
         {
           onConflict: "board_id,user_id",
