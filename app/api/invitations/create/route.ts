@@ -14,11 +14,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const { invitedUserId, boardId, boardTitle, inviterName } = body as {
+  const { invitedUserId, boardId, boardTitle, inviterName, role } = body as {
     invitedUserId?: string;
     boardId?: string;
     boardTitle?: string;
     inviterName?: string | null;
+    role?: 'viewer' | 'member' | 'owner';
   };
 
   if (!invitedUserId || !boardId) {
@@ -40,6 +41,7 @@ export async function POST(req: Request) {
       boardTitle: boardTitle || "Board",
       inviterId: userId,
       inviterName: inviterName || null,
+      role: role || 'member',
       createdAt: new Date().toISOString(),
     };
 
@@ -60,3 +62,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

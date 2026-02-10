@@ -5,51 +5,53 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useBoard } from '@/lib/hooks/useBoards';
+import { commentService } from '@/lib/services';
 import { useSupabase } from '@/lib/supabase/SupabaseProvider';
-import { AppUser, ColumnWithTasks, Task } from '@/lib/supabase/models';
+import { AppUser, ColumnWithTasks, Comment, Task } from '@/lib/supabase/models';
 import { useUser } from '@clerk/nextjs';
 import {
-    DndContext,
-    DragEndEvent,
-    DragOverEvent,
-    DragOverlay,
-    DragStartEvent,
-    PointerSensor,
-    rectIntersection,
-    useDroppable,
-    useSensor,
-    useSensors,
+  DndContext,
+  DragEndEvent,
+  DragOverEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  rectIntersection,
+  useDroppable,
+  useSensor,
+  useSensors,
 } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-    AlertTriangle,
-    Calendar,
-    Check,
-    FolderOpen,
-    Loader2,
-    MoreHorizontal,
-    Plus,
-    Trash,
-    User,
-    X
+  AlertCircle,
+  AlertTriangle,
+  Calendar,
+  Check,
+  FolderOpen,
+  Loader2,
+  MoreHorizontal,
+  Plus,
+  Trash,
+  User,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -60,12 +62,14 @@ function DroppableColumn({
   children,
   onEditColumn,
   onOpenCreateTask,
+  canEdit,
 }: {
   column: ColumnWithTasks;
   children: React.ReactNode;
   onCreateTask: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
   onEditColumn: (column: ColumnWithTasks) => void;
   onOpenCreateTask: (columnId: string) => void;
+  canEdit: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   return (
@@ -87,36 +91,41 @@ function DroppableColumn({
                 {column.tasks.length}
               </Badge>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="shrink-0"
-              onClick={() => onEditColumn(column)}
-            >
-              <MoreHorizontal />
-            </Button>
+            {canEdit && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0"
+                onClick={() => onEditColumn(column)}
+              >
+                <MoreHorizontal />
+              </Button>
+            )}
           </div>
         </div>
         {/* column content */}
         <div className="p-2">
           {children}{' '}
-          <Button
-            variant="ghost"
-            className="w-full mt-3 text-gray-500 hover:text-gray-700"
-            onClick={() => onOpenCreateTask(column.id)}
-          >
-            <Plus />
-            Add Task
-          </Button>
+          {canEdit && (
+            <Button
+              variant="ghost"
+              className="w-full mt-3 text-gray-500 hover:text-gray-700"
+              onClick={() => onOpenCreateTask(column.id)}
+            >
+              <Plus />
+              Add Task
+            </Button>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function SortableTask({ task, onEditTask, onViewTask, users }: { task: Task; onEditTask: (task: Task) => void; onViewTask: (task: Task) => void; users: Record<string, AppUser> }) {
+function SortableTask({ task, onEditTask, onViewTask, users, canEdit }: { task: Task; onEditTask: (task: Task) => void; onViewTask: (task: Task) => void; users: Record<string, AppUser>; canEdit: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
+    disabled: !canEdit,
   });
 
   const styles = {
@@ -148,20 +157,38 @@ function SortableTask({ task, onEditTask, onViewTask, users }: { task: Task; onE
               <h4 className="font-medium text-gray-900 text-sm leading-tight flex-1 min-w-0 pr-2">
                 {task.title}
               </h4>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={() => onEditTask(task)}
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
+              {canEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={() => onEditTask(task)}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              )}
             </div>
             {/*Task Description */}
             <p className="text-xs text-gray-600 line-clamp-2">
               {task.description || 'No description.'}
             </p>
+
+            {/* Task Labels */}
+            {task.labels && task.labels.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {task.labels.map(label => (
+                  <Badge
+                    key={label.id}
+                    variant="outline"
+                    className="text-[10px] h-5 px-1.5 min-w-0 truncate max-w-full"
+                    style={{ backgroundColor: label.color, color: '#fff', borderColor: 'transparent' }}
+                  >
+                    {label.name}
+                  </Badge>
+                ))}
+              </div>
+            )}
 
             {/* Task Meta */}
             <div className="flex items-center justify-between">
@@ -223,6 +250,23 @@ function TaskOverlay({ task, users }: { task: Task; users: Record<string, AppUse
             {task.description || 'No description.'}
           </p>
 
+          {/* Task Label */}
+          {/* Task Labels */}
+          {task.labels && task.labels.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {task.labels.map(label => (
+                <Badge
+                  key={label.id}
+                  variant="outline"
+                  className="text-[10px] h-5 px-1.5 min-w-0 truncate max-w-full"
+                  style={{ backgroundColor: label.color, color: '#fff', borderColor: 'transparent' }}
+                >
+                  {label.name}
+                </Badge>
+              ))}
+            </div>
+          )}
+
           {/* Task Meta */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1 sm:space-x-2 min-w-0">
@@ -245,14 +289,14 @@ function TaskOverlay({ task, users }: { task: Task; users: Record<string, AppUse
               )}
             </div>
             {task.assignee && (
-                <div className="flex items-center space-x-1">
-                     <Avatar className="h-5 w-5">
-                        <AvatarImage src={users[task.assignee]?.avatar_url || ''} />
-                        <AvatarFallback className="text-[10px] bg-sky-100 text-sky-800">
-                            {users[task.assignee]?.username?.slice(0, 2).toUpperCase() || '??'}
-                        </AvatarFallback>
-                    </Avatar>
-                </div>
+              <div className="flex items-center space-x-1">
+                <Avatar className="h-5 w-5">
+                  <AvatarImage src={users[task.assignee]?.avatar_url || ''} />
+                  <AvatarFallback className="text-[10px] bg-sky-100 text-sky-800">
+                    {users[task.assignee]?.username?.slice(0, 2).toUpperCase() || '??'}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
             )}
             <div className={`w-2 h-2 rounded-full shrink-0 ${getPriorityColor(task.priority)}`} />
           </div>
@@ -283,7 +327,15 @@ export default function BoardPage() {
     searchUsers,
     loading,
     error,
+    labels,
+    createLabel,
+    deleteLabel,
+    assignLabel,
+    removeLabel,
+    updateMemberRole,
+    loadLabels
   } = useBoard(id);
+
   const { supabase } = useSupabase();
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -314,14 +366,24 @@ export default function BoardPage() {
     attachment: null as File | null,
     attachmentUrl: '',
     assignee: '',
+    labelIds: [] as string[],
   });
   const [isViewingTask, setIsViewingTask] = useState(false);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
+  const [taskComments, setTaskComments] = useState<Comment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [newComment, setNewComment] = useState('');
+
+
 
   const [createAttachmentName, setCreateAttachmentName] = useState<string>('');
   const [createAttachment, setCreateAttachment] = useState<File | null>(null);
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [isCreatingTaskOpen, setIsCreatingTaskOpen] = useState(false);
   const [creatingTaskColumnId, setCreatingTaskColumnId] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<'viewer' | 'member' | 'owner'>('member');
+  const [isOwnershipTransferOpen, setIsOwnershipTransferOpen] = useState(false);
+  const [pendingNewOwner, setPendingNewOwner] = useState<{ memberId: string; userId: string } | null>(null);
   const memberLimit = 4;
 
   const [filters, setFilters] = useState({
@@ -342,6 +404,19 @@ export default function BoardPage() {
   const totalMembers = ownerCount + members.length;
   const isAtMemberLimit = totalMembers >= memberLimit;
 
+  const viewer = members.find(m => m.user_id === user?.id || m.external_user_id === user?.id);
+  // Debugging permissions
+  console.log('Permission Debug:', {
+    userId: user?.id,
+    boardOwnerId: board?.user_id,
+    isOwner,
+    viewerRole: viewer?.role,
+    viewerId: viewer?.user_id,
+    viewerExternalId: viewer?.external_user_id,
+    allMembers: members
+  });
+  const canEdit = isOwner || (!!viewer && viewer.role !== 'viewer');
+
   function openEditTask(task: Task) {
     setEditingTask(task);
     setTaskForm({
@@ -352,14 +427,58 @@ export default function BoardPage() {
       attachment: null,
       attachmentUrl: task.attachment_url || '',
       assignee: task.assignee || '',
+      labelIds: task.labels?.map(l => l.id) || [],
     });
     setIsEditingTask(true);
   }
 
-  function handleViewTask(task: Task) {
+  async function handleViewTask(task: Task) {
     setViewingTask(task);
     setIsViewingTask(true);
+    setLoadingComments(true);
+    try {
+      const comments = await commentService.getComments(supabase!, task.id);
+      const userIds = new Set(comments.map(c => c.user_id).filter(Boolean) as string[]);
+      const missingUserIds = Array.from(userIds).filter(id => !userProfiles[id]);
+      if (missingUserIds.length > 0) {
+        await fetchUserProfiles(missingUserIds);
+      }
+      setTaskComments(comments);
+    } catch (error) {
+      console.error('Failed to load comments', error);
+    } finally {
+      setLoadingComments(false);
+    }
   }
+
+  async function handleAddComment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!viewingTask || !user || !newComment.trim()) return;
+
+    try {
+      const comment = await commentService.addComment(supabase!, viewingTask.id, newComment.trim(), user.id);
+      setTaskComments(prev => [...prev, comment]);
+      setNewComment('');
+    } catch (error) {
+      console.error('Failed to add comment', error);
+    }
+  }
+
+  async function handleToggleLabel(labelId: string) {
+    if (!viewingTask) return;
+    const hasLabel = viewingTask.labels?.some(l => l.id === labelId);
+    try {
+      if (hasLabel) {
+        await removeLabel(viewingTask.id, labelId);
+      } else {
+        await assignLabel(viewingTask.id, labelId);
+      }
+    } catch (err) {
+      console.error("Failed to toggle label", err);
+    }
+  }
+
+
 
   function handleFilterChange(type: 'priority' | 'dueDate', value: string | string[] | null) {
     setFilters((prev) => ({
@@ -404,9 +523,17 @@ export default function BoardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board?.user_id, members]);
 
+  // Sync viewingTask with latest data from columns
+  useEffect(() => {
+    if (!viewingTask) return;
+    const freshTask = columns.flatMap(c => c.tasks).find(t => t.id === viewingTask.id);
+    if (freshTask && JSON.stringify(freshTask) !== JSON.stringify(viewingTask)) {
+      setViewingTask(freshTask);
+    }
+  }, [columns, viewingTask]);
+
   function getDisplayName(userId: string | null | undefined) {
     if (!userId) return 'Utilisateur';
-    if (user?.id === userId) return 'Vous';
     const info = userProfiles[userId];
     return info?.username || info?.fullName || info?.email?.split('@')[0] || 'Utilisateur';
   }
@@ -420,6 +547,7 @@ export default function BoardPage() {
 
   async function handleUpdateBoard(e: React.FormEvent) {
     e.preventDefault();
+    if (!canEdit) return;
 
     if (!newTitle.trim() || !board) return;
 
@@ -429,27 +557,14 @@ export default function BoardPage() {
         color: newColor || board.color,
       });
       setIsEditingTitle(false);
-    } catch {}
+    } catch { }
   }
 
-  async function createTask(taskData: {
-    title: string;
-    description?: string;
-    dueDate?: string;
-    priority: 'low' | 'medium' | 'high';
-    attachmentUrl?: string | null;
-    assignee?: string | null;
-  }) {
-    const targetColumnId = creatingTaskColumnId || columns[0]?.id;
-    if (!targetColumnId) {
-      throw new Error('No column available to add task');
-    }
 
-    await createRealTask(targetColumnId, taskData);
-  }
 
   async function handleCreateTask(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!canEdit) return;
     const formData = new FormData(e.currentTarget);
 
     const taskData = {
@@ -477,22 +592,26 @@ export default function BoardPage() {
         }
       }
 
-      await createTask({
+      const newTask = await createRealTask(columns.find(c => c.id === creatingTaskColumnId)?.id || columns[0].id, {
         title: taskData.title,
         description: taskData.description,
         dueDate: taskData.dueDate,
         priority: taskData.priority,
-        attachmentUrl,
-        assignee: taskData.assignee,
+        attachmentUrl: attachmentUrl,
+        assignee: taskData.assignee || null,
+        labelIds: selectedLabelIds
       });
 
+      setCreateAttachment(null);
+      setCreateAttachmentName('');
       setIsCreatingTaskOpen(false);
       setCreatingTaskColumnId(null);
-      setCreateAttachment(null);
+      setSelectedLabelIds([]);
     }
   }
 
   function handleDragStart(event: DragStartEvent) {
+    if (!canEdit) return;
     const taskId = event.active.id as string;
     const task = columns.flatMap((col) => col.tasks).find((task) => task.id === taskId);
 
@@ -502,6 +621,7 @@ export default function BoardPage() {
   }
 
   function handleDragOver(event: DragOverEvent) {
+    if (!canEdit) return;
     const { active, over } = event;
     if (!over) return;
 
@@ -537,6 +657,7 @@ export default function BoardPage() {
   }
 
   async function handleDragEnd(event: DragEndEvent) {
+    if (!canEdit) return;
     const { active, over } = event;
     if (!over) return;
 
@@ -567,6 +688,7 @@ export default function BoardPage() {
 
   async function handleCreateColumn(e: React.FormEvent) {
     e.preventDefault();
+    if (!canEdit) return;
 
     if (!newColumnTitle.trim()) return;
 
@@ -578,6 +700,7 @@ export default function BoardPage() {
 
   async function handleUpdateColumn(e: React.FormEvent) {
     e.preventDefault();
+    if (!canEdit) return;
 
     if (!editingColumnTitle.trim() || !editingColumn) return;
 
@@ -650,7 +773,7 @@ export default function BoardPage() {
       return;
     }
 
-    const success = await sendInvitation(targetUser);
+    const success = await sendInvitation(targetUser, selectedRole);
     if (!success) {
       setInviteError('Failed to send invitation.');
       return;
@@ -668,9 +791,49 @@ export default function BoardPage() {
     await removeMember(memberId);
   }
 
+  function handleRoleChange(memberId: string, newRole: string, memberUserId: string) {
+    // If trying to assign owner role, show confirmation dialog
+    if (newRole === 'owner') {
+      setPendingNewOwner({ memberId, userId: memberUserId });
+      setIsOwnershipTransferOpen(true);
+    } else {
+      // For other roles, update directly
+      updateMemberRole(memberId, newRole);
+    }
+  }
+
+  async function confirmOwnershipTransfer() {
+    if (!pendingNewOwner || !board) return;
+
+    try {
+      // Call API to transfer ownership
+      const response = await fetch(`/api/boards/${board.id}/transfer-ownership`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          newOwnerId: pendingNewOwner.userId,
+          memberRecordId: pendingNewOwner.memberId
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to transfer ownership');
+      }
+
+      // Reload the board to reflect changes
+      window.location.reload();
+    } catch (error) {
+      console.error('Ownership transfer failed:', error);
+      alert('Failed to transfer ownership. Please try again.');
+    } finally {
+      setIsOwnershipTransferOpen(false);
+      setPendingNewOwner(null);
+    }
+  }
+
   async function handleUpdateTask(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!editingTask) return;
+    if (!editingTask || !canEdit) return;
 
     let attachmentUrl = taskForm.attachmentUrl || editingTask.attachment_url || null;
     if (taskForm.attachment && taskForm.attachment.size > 0) {
@@ -696,12 +859,26 @@ export default function BoardPage() {
       assignee: taskForm.assignee || null,
     });
 
+    // Handle Label Changes
+    const currentLabelIds = editingTask.labels?.map((l) => l.id) || [];
+    const newLabelIds = taskForm.labelIds;
+
+    // Find labels to add
+    const toAdd = newLabelIds.filter((id) => !currentLabelIds.includes(id));
+    // Find labels to remove
+    const toRemove = currentLabelIds.filter((id) => !newLabelIds.includes(id));
+
+    await Promise.all([
+      ...toAdd.map((id) => assignLabel(editingTask.id, id)),
+      ...toRemove.map((id) => removeLabel(editingTask.id, id)),
+    ]);
+
     setIsEditingTask(false);
     setEditingTask(null);
   }
 
   async function handleDeleteTask() {
-    if (!editingTask) return;
+    if (!editingTask || !canEdit) return;
     await deleteTask(editingTask.id);
     setIsEditingTask(false);
     setEditingTask(null);
@@ -857,9 +1034,8 @@ export default function BoardPage() {
                     <button
                       key={key}
                       type="button"
-                      className={`w-8 h-8 rounded-full ${color} ${
-                        color === newColor ? 'ring-2 ring-offset-2 ring-gray-900' : ''
-                      }`}
+                      className={`w-8 h-8 rounded-full ${color} ${color === newColor ? 'ring-2 ring-offset-2 ring-gray-900' : ''
+                        }`}
                       onClick={() => setNewColor(color)}
                     />
                   ))}
@@ -990,6 +1166,10 @@ export default function BoardPage() {
                       <Input type="date" id="dueDate" name="dueDate" />
                     </div>
                     <div className="space-y-2">
+                      <Label>Label</Label>
+                      <Input id="label" name="label" placeholder="Optional label (e.g. Bug, Feature)" />
+                    </div>
+                    <div className="space-y-2">
                       <Label>Pièce jointe</Label>
                       <Input type="file" name="attachment" />
                     </div>
@@ -1034,6 +1214,7 @@ export default function BoardPage() {
                     setCreatingTaskColumnId(columnId);
                     setIsCreatingTaskOpen(true);
                   }}
+                  canEdit={canEdit}
                 >
                   <SortableContext
                     items={column.tasks.map((task) => task.id)}
@@ -1041,7 +1222,7 @@ export default function BoardPage() {
                   >
                     <div className="space-y-3 ">
                       {column.tasks.map((task, key) => (
-                        <SortableTask task={task} key={key} onEditTask={openEditTask} onViewTask={handleViewTask} users={userProfiles} />
+                        <SortableTask task={task} key={key} onEditTask={openEditTask} onViewTask={handleViewTask} users={userProfiles} canEdit={canEdit} />
                       ))}
                     </div>
                   </SortableContext>
@@ -1075,59 +1256,131 @@ export default function BoardPage() {
               <h3 className="font-semibold text-lg">{viewingTask?.title}</h3>
               <p className="text-sm text-gray-600">{viewingTask?.description || 'No description'}</p>
             </div>
-            
+
             <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-500">Priority:</span>
-                     <Badge variant={viewingTask?.priority === 'high' ? 'destructive' : viewingTask?.priority === 'medium' ? 'default' : 'secondary'} className="capitalize">
-                        {viewingTask?.priority}
-                     </Badge>
-                </div>
-                 <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-500">Due Date:</span>
-                    <span className="text-sm text-gray-900">{viewingTask?.due_date || 'No due date'}</span>
-                </div>
-                 <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-500">Assignee:</span>
-                    {viewingTask?.assignee ? (
-                         <div className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6">
-                                <AvatarImage src={userProfiles[viewingTask.assignee]?.avatar_url || ''} />
-                                <AvatarFallback className="text-[10px] bg-sky-100 text-sky-800">
-                                    {userProfiles[viewingTask.assignee]?.username?.slice(0, 2).toUpperCase() || '??'}
-                                </AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm text-gray-900">{getDisplayName(viewingTask.assignee)}</span>
-                        </div>
-                    ) : (
-                         <span className="text-sm text-gray-900">Unassigned</span>
-                    )}
-                </div>
-                {viewingTask?.attachment_url && (
-                    <div className="flex flex-col gap-1">
-                        <span className="text-sm font-medium text-gray-500">Attachment:</span>
-                         <a
-                            href={viewingTask.attachment_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center gap-2 text-sm text-blue-600 underline"
-                        >
-                            <FolderOpen className="h-4 w-4" />
-                            {decodeURIComponent(viewingTask.attachment_url.split('/').pop() || 'Download')}
-                        </a>
-                    </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-500">Priority:</span>
+                <Badge variant={viewingTask?.priority === 'high' ? 'destructive' : viewingTask?.priority === 'medium' ? 'default' : 'secondary'} className="capitalize">
+                  {viewingTask?.priority}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-500">Due Date:</span>
+                <span className="text-sm text-gray-900">{viewingTask?.due_date || 'No due date'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-500">Assignee:</span>
+                {viewingTask?.assignee ? (
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={userProfiles[viewingTask.assignee]?.avatar_url || ''} />
+                      <AvatarFallback className="text-[10px] bg-sky-100 text-sky-800">
+                        {userProfiles[viewingTask.assignee]?.username?.slice(0, 2).toUpperCase() || '??'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm text-gray-900">{getDisplayName(viewingTask.assignee)}</span>
+                  </div>
+                ) : (
+                  <span className="text-sm text-gray-900">Unassigned</span>
                 )}
+              </div>
+              {viewingTask?.attachment_url && (
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-medium text-gray-500">Attachment:</span>
+                  <a
+                    href={viewingTask.attachment_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-2 text-sm text-blue-600 underline"
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                    {decodeURIComponent(viewingTask.attachment_url.split('/').pop() || 'Download')}
+                  </a>
+                </div>
+              )}
+
+              {/* Task Labels */}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-500">Labels:</span>
+                </div>
+                {viewingTask?.labels && viewingTask.labels.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {viewingTask.labels.map(label => (
+                      <Badge
+                        key={label.id}
+                        variant="outline"
+                        className="text-[10px] h-5 px-1.5 min-w-0 truncate max-w-full"
+                        style={{ backgroundColor: label.color, color: '#fff', borderColor: 'transparent' }}
+                      >
+                        {label.name}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs text-gray-400 italic">No labels</span>
+                )}
+              </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-4">
-                 <Button onClick={() => setIsViewingTask(false)} variant="outline">Close</Button>
-                <Button onClick={() => {
-                    if(viewingTask) {
-                        openEditTask(viewingTask);
-                        setIsViewingTask(false);
-                    }
-                }}>Edit</Button>
+            <div className="border-t pt-4">
+              <h4 className="font-semibold text-sm mb-3">Comments</h4>
+              <div className="space-y-4 max-h-60 overflow-y-auto mb-4">
+                {loadingComments ? (
+                  <div className="text-sm text-gray-500">Loading comments...</div>
+                ) : taskComments.length === 0 ? (
+                  <div className="text-sm text-gray-500">No comments yet.</div>
+                ) : (
+                  taskComments.map((comment) => (
+                    <div key={comment.id} className="flex gap-2 text-sm">
+                      <Avatar className="h-6 w-6 shrink-0 mt-0.5">
+                        <AvatarImage src={userProfiles[comment.user_id || '']?.avatar_url || ''} />
+                        <AvatarFallback className="text-[10px] bg-sky-100 text-sky-800">
+                          {userProfiles[comment.user_id || '']?.username?.slice(0, 2).toUpperCase() || '??'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{getDisplayName(comment.user_id)}</span>
+                          <span className="text-xs text-gray-400">{new Date(comment.created_at).toLocaleString()}</span>
+                        </div>
+                        <p className="text-gray-700 mt-0.5">{comment.content}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {canEdit && (
+                <form onSubmit={handleAddComment} className="flex gap-2">
+                  <Input
+                    placeholder="Write a comment..."
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button type="submit" size="sm" disabled={!newComment.trim()}>
+                    Send
+                  </Button>
+                </form>
+              )}
             </div>
+
+
+          </div>
+
+
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button onClick={() => setIsViewingTask(false)} variant="outline">Close</Button>
+            {canEdit && (
+              <Button onClick={() => {
+                if (viewingTask) {
+                  openEditTask(viewingTask);
+                  setIsViewingTask(false);
+                }
+              }}>Edit</Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -1244,9 +1497,8 @@ export default function BoardPage() {
                       type="button"
                       key={userOption.id}
                       onClick={() => setSelectedUser(userOption)}
-                      className={`w-full px-3 py-2 text-left flex items-center gap-3 hover:bg-gray-50 transition ${
-                        selectedUser?.id === userOption.id ? 'bg-gray-50' : ''
-                      }`}
+                      className={`w-full px-3 py-2 text-left flex items-center gap-3 hover:bg-gray-50 transition ${selectedUser?.id === userOption.id ? 'bg-gray-50' : ''
+                        }`}
                     >
                       <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center">
                         <User className="h-4 w-4 text-gray-600" />
@@ -1266,66 +1518,152 @@ export default function BoardPage() {
                   ))
                 )}
               </div>
-              {isAtMemberLimit && (
-                <p className="text-sm text-amber-600">
-                  Member limit reached. Remove someone to invite more.
-                </p>
-              )}
-              {inviteError && <p className="text-sm text-red-600">{inviteError}</p>}
-              {inviteSuccess && <p className="text-sm text-green-600">{inviteSuccess}</p>}
             </div>
-            <div>
-              <Label className="text-xs">
-                Current Members{' '}
-                <span className="font-semibold text-gray-600">
-                  {totalMembers}/{memberLimit}
-                </span>
-              </Label>
-              <div className="mt-2 space-y-2">
-                <div className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-xs sm:text-sm">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Badge variant="secondary" className="text-[10px]">
-                      Owner
-                    </Badge>
-                    <span className="truncate">{getDisplayName(board?.user_id)}</span>
-                  </div>
-                </div>
-                {members.length === 0 ? (
-                  <div className="rounded-md border border-dashed border-gray-200 px-3 py-2 text-xs text-gray-500">
-                    No additional members yet.
-                  </div>
-                ) : (
-                  members.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-xs sm:text-sm"
-                    >
-                      <span className="truncate">{getDisplayName(member.user_id)}</span>
-                      {isOwner && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-gray-500 hover:text-red-600"
-                          onClick={() => handleRemoveMember(member.id)}
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  ))
-                )}
+            {inviteError && (
+              <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                {inviteError}
               </div>
-            </div>
-            <div className="flex justify-end space-x-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setIsInviteOpen(false)}>
-                Close
-              </Button>
-              <Button type="submit" disabled={isAtMemberLimit}>
+            )}
+            {inviteSuccess && (
+              <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md flex items-center gap-2">
+                <Check className="h-4 w-4" />
+                {inviteSuccess}
+              </div>
+            )}
+            <div className="flex justify-end pt-2">
+              <Button type="submit" disabled={!selectedUser}>
                 Send Invite
               </Button>
             </div>
           </form>
+
+          <div className="mt-6 pt-6 border-t">
+            <h4 className="font-medium mb-4">Membres du tableau</h4>
+            <div className="space-y-3">
+              {/* Explicitly render Board Owner */}
+              {board?.user_id && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-medium text-xs">
+                      {getDisplayName(board.user_id).substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">
+                        {board.user_id === user?.id
+                          ? `${getDisplayName(board.user_id)} (You)`
+                          : getDisplayName(board.user_id)}
+                      </p>
+                      <p className="text-xs text-gray-500 capitalize">Owner</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Render other members */}
+              {members.filter(m => m.user_id !== board?.user_id).map((member) => (
+                <div key={member.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-medium text-xs">
+                      {getDisplayName(member.user_id || member.external_user_id || '').substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{getDisplayName(member.user_id || member.external_user_id)}</p>
+                      <p className="text-xs text-gray-500 capitalize">{member.role}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isOwner && member.user_id !== user?.id && (
+                      <Select
+                        value={member.role}
+                        onValueChange={(val) => handleRoleChange(member.id, val, member.user_id || member.external_user_id || '')}
+                      >
+                        <SelectTrigger className="h-7 text-xs w-[100px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="viewer">Viewer</SelectItem>
+                          <SelectItem value="member">Member</SelectItem>
+                          <SelectItem value="owner">Owner</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {isOwner && member.user_id !== user?.id && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleRemoveMember(member.id)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {isAtMemberLimit && (
+            <p className="text-sm text-amber-600">
+              Member limit reached. Remove someone to invite more.
+            </p>
+          )}
+
+
+
+        </DialogContent>
+      </Dialog>
+
+      {/* Ownership Transfer Confirmation Dialog */}
+      <Dialog open={isOwnershipTransferOpen} onOpenChange={setIsOwnershipTransferOpen}>
+        <DialogContent className="w-[95vw] max-w-[500px] mx-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertCircle className="h-5 w-5" />
+              Transfer Board Ownership
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
+              <p className="text-sm text-amber-900 font-medium mb-2">
+                ⚠️ Warning: This action cannot be undone!
+              </p>
+              <p className="text-sm text-amber-800">
+                You are about to transfer ownership of this board to{' '}
+                <span className="font-semibold">
+                  {pendingNewOwner && getDisplayName(pendingNewOwner.userId)}
+                </span>.
+              </p>
+            </div>
+
+            <div className="space-y-2 text-sm text-gray-700">
+              <p className="font-medium">After transferring ownership:</p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li>You will become a regular <strong>Member</strong></li>
+                <li>You will <strong>lose the ability</strong> to manage members</li>
+                <li>You will <strong>no longer</strong> be able to change roles or remove members</li>
+                <li>The new owner will have <strong>full control</strong> over the board</li>
+              </ul>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsOwnershipTransferOpen(false);
+                  setPendingNewOwner(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={confirmOwnershipTransfer}
+              >
+                Yes, Transfer Ownership
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1335,6 +1673,7 @@ export default function BoardPage() {
             <DialogTitle>Edit Task</DialogTitle>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleUpdateTask}>
+
             <div className="space-y-2">
               <Label>Title *</Label>
               <Input
@@ -1383,7 +1722,7 @@ export default function BoardPage() {
             </div>
             <div className="space-y-2">
               <Label>Assignee</Label>
-               <Select
+              <Select
                 value={taskForm.assignee}
                 onValueChange={(value) =>
                   setTaskForm((prev) => ({
@@ -1402,14 +1741,40 @@ export default function BoardPage() {
                       {getDisplayName(member.user_id || member.external_user_id)}
                     </SelectItem>
                   ))}
-                   {/* Add yourself if not already in members list (e.g. owner) */}
+                  {/* Add yourself if not already in members list (e.g. owner) */}
                   {board?.user_id && !members.some(m => m.user_id === board.user_id) && (
-                       <SelectItem value={board.user_id}>
-                          {getDisplayName(board.user_id)}
-                       </SelectItem>
+                    <SelectItem value={board.user_id}>
+                      {getDisplayName(board.user_id)}
+                    </SelectItem>
                   )}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Labels</Label>
+              <div className="flex flex-wrap gap-2">
+                {labels.map(label => {
+                  const isSelected = taskForm.labelIds.includes(label.id);
+                  return (
+                    <div
+                      key={label.id}
+                      className={`flex items-center space-x-2 px-2 py-1 rounded cursor-pointer border ${isSelected ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}
+                      onClick={() => {
+                        setTaskForm(prev => ({
+                          ...prev,
+                          labelIds: isSelected
+                            ? prev.labelIds.filter(id => id !== label.id)
+                            : [...prev.labelIds, label.id]
+                        }));
+                      }}
+                    >
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: label.color }} />
+                      <span className="text-xs">{label.name}</span>
+                      {isSelected && <Check className="w-3 h-3 text-blue-600" />}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Due Date</Label>
@@ -1507,9 +1872,9 @@ export default function BoardPage() {
                 <Button type="submit">Save</Button>
               </div>
             </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+          </form >
+        </DialogContent >
+      </Dialog >
       <Dialog open={isCreatingTaskOpen} onOpenChange={setIsCreatingTaskOpen}>
         <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
           <DialogHeader>
@@ -1545,6 +1910,57 @@ export default function BoardPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <Label>Assignee</Label>
+              <Select name="assignee">
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a member" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {members.map((member) => (
+                    <SelectItem key={member.id} value={member.user_id || member.external_user_id || ''}>
+                      {getDisplayName(member.user_id || member.external_user_id)}
+                    </SelectItem>
+                  ))}
+                  {/* Add yourself if not already in members list (e.g. owner) */}
+                  {board?.user_id && !members.some(m => m.user_id === board.user_id) && (
+                    <SelectItem value={board.user_id}>
+                      {getDisplayName(board.user_id)}
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Labels</Label>
+              <div className="flex flex-wrap gap-2">
+                {labels.map(label => {
+                  const isSelected = selectedLabelIds.includes(label.id);
+                  return (
+                    <div
+                      key={label.id}
+                      className={`flex items-center space-x-2 px-2 py-1 rounded cursor-pointer border ${isSelected ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}
+                      onClick={() => {
+                        setSelectedLabelIds(prev =>
+                          isSelected ? prev.filter(id => id !== label.id) : [...prev, label.id]
+                        );
+                      }}
+                    >
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: label.color }} />
+                      <span className="text-xs">{label.name}</span>
+                      {isSelected && <Check className="w-3 h-3 text-blue-600" />}
+                    </div>
+                  );
+                })}
+                {labels.length === 0 && (
+                  <p className="text-xs text-gray-500 px-2">Loading default labels...</p>
+                )}
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label>Due Date</Label>
               <Input type="date" id="dueDate" name="dueDate" />
@@ -1596,6 +2012,7 @@ export default function BoardPage() {
           </form>
         </DialogContent>
       </Dialog>
+
     </>
   );
 }

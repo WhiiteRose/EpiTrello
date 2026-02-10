@@ -1,5 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { Board, BoardMember, Column, Task } from "./supabase/models";
+import { AppUser, Board, BoardMember, Column, Comment, Task } from "./supabase/models";
 
 export const boardService = {
   async getBoard(supabase: SupabaseClient, boardId: string): Promise<Board> {
@@ -143,6 +143,8 @@ export const columnService = {
     if (error) throw error;
     return data;
   },
+
+
 };
 
 export const taskService = {
@@ -150,31 +152,102 @@ export const taskService = {
     supabase: SupabaseClient,
     boardId: string
   ): Promise<Task[]> {
-    const { data, error } = await supabase
+    const { data: tasks, error: tasksError } = await supabase
       .from("tasks")
-      .select(`*, columns!inner(board_id)`)
+      .select(`
+        *,
+        columns!inner(board_id)
+      `)
       .eq("columns.board_id", boardId)
       .order("sort_order", { ascending: true });
 
-    if (error) throw error;
+    if (tasksError) throw tasksError;
+    if (!tasks || tasks.length === 0) return [];
 
-    return data || [];
+    // Fetch labels separately to avoid schema cache issues with joins
+    // We fetch all task_labels for these tasks
+    const taskIds = tasks.map(t => t.id);
+    const { data: taskLabels, error: labelsError } = await supabase
+      .from("task_labels")
+      .select(`
+        task_id,
+        labels (*)
+      `)
+      .in('task_id', taskIds);
+
+    if (labelsError) {
+      console.error("Failed to fetch task labels", labelsError);
+      // Return tasks without labels if label fetch fails
+      return tasks.map(task => ({
+        ...task,
+        labels: []
+      }));
+    }
+
+    // Map labels to tasks
+    const labelsMap = (taskLabels || []).reduce((acc: Record<string, any[]>, item: any) => {
+      if (!acc[item.task_id]) acc[item.task_id] = [];
+      if (item.labels) acc[item.task_id].push(item.labels);
+      return acc;
+    }, {});
+
+    return tasks.map((task: any) => ({
+      ...task,
+      labels: labelsMap[task.id] || []
+    }));
   },
 
   async createTask(
     supabase: SupabaseClient,
-
-    task: Omit<Task, "id" | "created_at" | "updated_at">
+    columnId: string,
+    title: string,
+    description?: string,
+    dueDate?: string,
+    priority: "low" | "medium" | "high" = "medium",
+    attachmentUrl?: string | null,
+    assignee?: string | null,
+    labelIds?: string[]
   ): Promise<Task> {
     const { data, error } = await supabase
       .from("tasks")
-      .insert(task)
+      .insert({
+        column_id: columnId,
+        title,
+        description,
+        due_date: dueDate,
+        priority,
+        attachment_url: attachmentUrl,
+        assignee,
+      })
       .select()
       .single();
 
     if (error) throw error;
 
-    return data;
+    let labels: any[] = [];
+    if (labelIds && labelIds.length > 0) {
+      const taskLabels = labelIds.map(labelId => ({
+        task_id: data.id,
+        label_id: labelId
+      }));
+
+      const { error: labelError } = await supabase
+        .from('task_labels')
+        .insert(taskLabels);
+
+      if (labelError) {
+        console.error("Failed to assign labels on creation", labelError);
+      } else {
+        // Fetch the actual label objects to return with the task
+        const { data: fetchedLabels } = await supabase
+          .from('labels')
+          .select('*')
+          .in('id', labelIds);
+        labels = fetchedLabels || [];
+      }
+    }
+
+    return { ...data, labels };
   },
 
   async moveTask(
@@ -199,18 +272,65 @@ export const taskService = {
   async updateTask(
     supabase: SupabaseClient,
     taskId: string,
-    updates: Partial<Omit<Task, "id" | "created_at">>
+    updates: {
+      title?: string;
+      description?: string | null;
+      priority?: "low" | "medium" | "high";
+      due_date?: string | null;
+      attachment_url?: string | null;
+      assignee?: string | null;
+    }
   ): Promise<Task> {
-    const { data, error } = await supabase
+    const { data: task, error: updateError } = await supabase
       .from("tasks")
       .update(updates)
       .eq("id", taskId)
       .select()
       .single();
 
-    if (error) throw error;
+    if (updateError) throw updateError;
 
-    return data;
+    // Fetch labels for this task
+    const { data: taskLabels, error: labelsError } = await supabase
+      .from("task_labels")
+      .select(`
+            labels (*)
+        `)
+      .eq('task_id', taskId);
+
+    const labels = labelsError ? [] : (taskLabels?.map((tl: any) => tl.labels) || []);
+
+    return {
+      ...task,
+      labels
+    };
+  },
+
+  async assignLabel(
+    supabase: SupabaseClient,
+    taskId: string,
+    labelId: string
+  ) {
+    const { error } = await supabase
+      .from('task_labels')
+      .insert({ task_id: taskId, label_id: labelId });
+
+    if (error && error.code !== '23505') { // Ignore unique violation
+      throw error;
+    }
+  },
+
+  async removeLabel(
+    supabase: SupabaseClient,
+    taskId: string,
+    labelId: string
+  ) {
+    const { error } = await supabase
+      .from('task_labels')
+      .delete()
+      .match({ task_id: taskId, label_id: labelId });
+
+    if (error) throw error;
   },
 
   async deleteTask(supabase: SupabaseClient, taskId: string) {
@@ -265,6 +385,44 @@ export const boardMemberService = {
       .delete()
       .eq("id", memberId);
     if (error) throw error;
+  },
+};
+
+export const commentService = {
+  async getComments(
+    supabase: SupabaseClient,
+    taskId: string
+  ): Promise<Comment[]> {
+    const { data, error } = await supabase
+      .from("comments")
+      .select("*")
+      .eq("task_id", taskId)
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+
+    return data || [];
+  },
+
+  async addComment(
+    supabase: SupabaseClient,
+    taskId: string,
+    content: string,
+    userId: string
+  ): Promise<Comment> {
+    const { data, error } = await supabase
+      .from("comments")
+      .insert({
+        task_id: taskId,
+        content,
+        user_id: userId,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return data;
   },
 };
 
@@ -324,4 +482,49 @@ export const boardDataService = {
 
     return board;
   },
+};
+
+export const labelService = {
+  async getLabels(supabase: SupabaseClient, boardId: string) {
+    const { data, error } = await supabase
+      .from('labels')
+      .select('*')
+      .eq('board_id', boardId)
+      .order('name');
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  async createLabel(supabase: SupabaseClient, boardId: string, name: string, color: string) {
+    // Check if label already exists to avoid duplicates
+    const { data: existing } = await supabase
+      .from('labels')
+      .select('id')
+      .eq('board_id', boardId)
+      .eq('name', name)
+      .single();
+
+    if (existing) {
+      return existing;
+    }
+
+    const { data, error } = await supabase
+      .from('labels')
+      .insert({ board_id: boardId, name, color })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async deleteLabel(supabase: SupabaseClient, labelId: string) {
+    const { error } = await supabase
+      .from('labels')
+      .delete()
+      .eq('id', labelId);
+
+    if (error) throw error;
+  }
 };

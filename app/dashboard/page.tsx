@@ -90,13 +90,13 @@ export default function DashboardPage() {
   const ownedBoardLimit = hasEntreprisePlan
     ? Number.POSITIVE_INFINITY
     : hasProPlan
-    ? 5
-    : 1;
+      ? 5
+      : 1;
   const invitedBoardLimit = hasEntreprisePlan
     ? Number.POSITIVE_INFINITY
     : hasProPlan
-    ? 2
-    : 1;
+      ? 2
+      : 1;
   let invitedVisibleCount = 0;
   const visibleBoardsWithTaskCount = boardsWithTaskCount.filter((board) => {
     if (board.user_id === user?.id) return true;
@@ -152,8 +152,8 @@ export default function DashboardPage() {
   const upgradeCopy = hasEntreprisePlan
     ? ""
     : hasProPlan
-    ? "Limite Pro atteinte (5 boards). Passez à Enterprise pour aller au-delà."
-    : "Free: 1 board max. Passez en Pro ou Enterprise pour en créer davantage.";
+      ? "Limite Pro atteinte (5 boards). Passez à Enterprise pour aller au-delà."
+      : "Free: 1 board max. Passez en Pro ou Enterprise pour en créer davantage.";
 
   const handleCreateBoard = async () => {
     if (!canCreateBoard) {
@@ -487,17 +487,19 @@ export default function DashboardPage() {
                           <Badge className="text-xs" variant="secondary">
                             New
                           </Badge>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-gray-500 hover:text-red-600"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              handleDeleteBoard(board.id);
-                            }}
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
+                          {board.user_id === user?.id && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-gray-500 hover:text-red-600"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                handleDeleteBoard(board.id);
+                              }}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </CardHeader>
@@ -555,17 +557,19 @@ export default function DashboardPage() {
                             <Badge className="text-xs" variant="secondary">
                               New
                             </Badge>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-gray-500 hover:text-red-600"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                handleDeleteBoard(board.id);
-                              }}
-                            >
-                              <Trash className="h-4 w-4" />
-                            </Button>
+                            {board.user_id === user?.id && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-gray-500 hover:text-red-600"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleDeleteBoard(board.id);
+                                }}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </CardHeader>

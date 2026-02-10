@@ -2,18 +2,21 @@
 import { useUser } from "@clerk/nextjs";
 import { useCallback, useEffect, useState } from "react";
 import {
-    boardDataService,
-    boardMemberService,
-    boardService,
-    columnService,
-    taskService,
+  boardDataService,
+  boardMemberService,
+  boardService,
+  columnService,
+  taskService,
+  labelService
 } from "../services";
 import {
-    AppUser,
-    Board,
-    BoardMember,
-    ColumnWithTasks,
-    Task,
+  AppUser,
+  Board,
+  BoardMember,
+  ColumnWithTasks,
+  Comment,
+  Label,
+  Task,
 } from "../supabase/models";
 import { useSupabase } from "../supabase/SupabaseProvider";
 
@@ -138,6 +141,7 @@ export function useBoard(boardId: string) {
   const [board, setBoard] = useState<Board | null>(null);
   const [columns, setColumns] = useState<ColumnWithTasks[]>([]);
   const [members, setMembers] = useState<BoardMember[]>([]);
+  const [labels, setLabels] = useState<Label[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>();
 
@@ -171,13 +175,77 @@ export function useBoard(boardId: string) {
     }
   }, [boardId, supabase]);
 
+  const loadLabels = useCallback(async () => {
+    if (!boardId || !supabase) return;
+    try {
+      const data = await labelService.getLabels(supabase, boardId);
+      if (data.length === 0) {
+        // Auto-initialize defaults if no labels exist
+        const defaults = [
+          { name: 'Bug', color: '#ef4444' },
+          { name: 'Feature', color: '#3b82f6' },
+          { name: 'Enhancement', color: '#22c55e' },
+          { name: 'Documentation', color: '#f97316' },
+          { name: 'High Priority', color: '#ec4899' },
+        ];
+        const newLabels = [];
+        for (const label of defaults) {
+          try {
+            const created = await labelService.createLabel(supabase, boardId, label.name, label.color);
+            newLabels.push(created);
+          } catch (e) {
+            console.error("Failed to auto-create label", label.name, e);
+          }
+        }
+        setLabels(newLabels.filter(l => l !== undefined) as any[]);
+      } else {
+        // Deduplicate labels based on name and board_id (though we just check by ID usually, but here name/color to be safe if duplicates exist)
+        // Or simply by ID if the DB returns distinct rows.
+        // Assuming the "double" issue is due to duplicates in DB, we filter by unique ID here first.
+        const uniqueLabels = Array.from(new Map(data.map(item => [item.id, item])).values());
+
+        // If the user says "twice", maybe we have 2 rows with same name but different IDs?
+        // Let's deduce unique by ID first.
+        // If duplicates exist in DB, they have different IDs. We should dedupe by NAME to clean up UI.
+        const uniqueByName = Array.from(new Map(uniqueLabels.map(item => [item.name, item])).values());
+
+        setLabels(uniqueByName);
+      }
+    } catch (err) {
+      console.error("Failed to load labels", err);
+    }
+  }, [boardId, supabase]);
+
+  async function createLabel(name: string, color: string) {
+    if (!board || !supabase) return;
+    try {
+      const newLabel = await labelService.createLabel(supabase, board.id, name, color);
+      setLabels(prev => [...prev, newLabel]);
+      return newLabel;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create label");
+    }
+  }
+
+  async function deleteLabel(labelId: string) {
+    if (!board || !supabase) return;
+    try {
+      await labelService.deleteLabel(supabase, labelId);
+      setLabels(prev => prev.filter(l => l.id !== labelId));
+      loadBoard(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete label");
+    }
+  }
+
   useEffect(() => {
     loadBoard(true);
   }, [loadBoard]);
 
   useEffect(() => {
     loadMembers();
-  }, [loadMembers]);
+    loadLabels();
+  }, [loadMembers, loadLabels]);
 
   useEffect(() => {
     if (!supabase || !boardId) return;
@@ -260,20 +328,21 @@ export function useBoard(boardId: string) {
       priority: "low" | "medium" | "high";
       attachmentUrl?: string | null;
       assignee?: string | null;
+      labelIds?: string[];
     }
   ) {
     try {
-      const newTask = await taskService.createTask(supabase!, {
-        title: taskData.title,
-        description: taskData.description || null,
-        due_date: taskData.dueDate || null,
-        attachment_url: taskData.attachmentUrl || null,
-        column_id: columnId,
-        sort_order:
-          columns.find((col) => col.id === columnId)?.tasks.length || 0,
-        priority: taskData.priority || "medium",
-        assignee: taskData.assignee || null,
-      });
+      const newTask = await taskService.createTask(
+        supabase!,
+        columnId,
+        taskData.title,
+        taskData.description,
+        taskData.dueDate,
+        taskData.priority,
+        taskData.attachmentUrl,
+        taskData.assignee,
+        taskData.labelIds
+      );
 
       setColumns((prev) =>
         prev.map((col) =>
@@ -350,11 +419,11 @@ export function useBoard(boardId: string) {
         prev.map((col) =>
           col.id === updatedTask.column_id
             ? {
-                ...col,
-                tasks: col.tasks.map((task) =>
-                  task.id === taskId ? { ...task, ...updatedTask } : task
-                ),
-              }
+              ...col,
+              tasks: col.tasks.map((task) =>
+                task.id === taskId ? { ...task, ...updatedTask } : task
+              ),
+            }
             : col
         )
       );
@@ -362,6 +431,28 @@ export function useBoard(boardId: string) {
       return updatedTask;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update task.");
+    }
+  }
+
+  async function assignLabel(taskId: string, labelId: string) {
+    if (!supabase) return;
+    try {
+      await taskService.assignLabel(supabase, taskId, labelId);
+      await loadBoard(false); // Reload board to reflect label changes
+    } catch (err) {
+      console.error("Failed to assign label", err);
+      setError(err instanceof Error ? err.message : "Failed to assign label");
+    }
+  }
+
+  async function removeLabel(taskId: string, labelId: string) {
+    if (!supabase) return;
+    try {
+      await taskService.removeLabel(supabase, taskId, labelId);
+      await loadBoard(false);
+    } catch (err) {
+      console.error("Failed to remove label", err);
+      setError(err instanceof Error ? err.message : "Failed to remove label");
     }
   }
 
@@ -491,7 +582,7 @@ export function useBoard(boardId: string) {
       username?: string | null;
       email?: string | null;
       fullName?: string | null;
-    }) {
+    }, role: 'viewer' | 'member' | 'owner' = 'member') {
       if (!board || !user) throw new Error("Board is not loaded");
       try {
         setError(null);
@@ -503,6 +594,7 @@ export function useBoard(boardId: string) {
             boardId: board.id,
             boardTitle: board.title,
             inviterName: user.username || user.emailAddresses[0]?.emailAddress,
+            role,
           }),
         });
         return true;
@@ -513,5 +605,26 @@ export function useBoard(boardId: string) {
         return false;
       }
     },
+    async updateMemberRole(memberId: string, role: string) {
+      if (!board) return;
+      try {
+        await fetch(`/api/boards/${board.id}/members`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ memberId, role, boardId: board.id }),
+        });
+        // Optimistic update
+        setMembers(prev => prev.map(m => m.id === memberId ? { ...m, role: role as any } : m));
+      } catch (err) {
+        console.error("Failed to update member role", err);
+        setError("Failed to update member role");
+      }
+    },
+    labels,
+    createLabel,
+    deleteLabel,
+    assignLabel,
+    removeLabel,
+    loadLabels
   };
 }
